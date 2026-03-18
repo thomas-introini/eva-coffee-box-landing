@@ -1,0 +1,640 @@
+.eva-coffee-box {
+  --eva-ink: #2d211a;
+  --eva-paper: #fbf4ea;
+  --eva-clay: #dd5f34;
+  --eva-gold: #d7a64a;
+  --eva-shadow: 0 20px 40px rgba(50, 34, 23, 0.12);
+  font-family: var(--font-family);
+  background:
+    radial-gradient(circle at 8% 4%, rgba(221, 95, 52, 0.22), transparent 35%),
+    radial-gradient(circle at 90% 16%, rgba(215, 166, 74, 0.2), transparent 38%),
+    linear-gradient(180deg, #fcf7ef 0%, #f5ebdd 48%, #f8efe3 100%);
+  color: var(--eva-ink);
+  padding-bottom: 4rem;
+  overflow: clip;
+}
+
+.eva-wrap {
+  width: min(1160px, calc(100% - 2.25rem));
+  margin: 0 auto;
+}
+
+.eva-coffee-box-hero {
+  padding: 4rem 0 2.4rem;
+  position: relative;
+}
+
+.eva-coffee-box-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -8vw -1.4rem auto;
+  width: clamp(200px, 32vw, 420px);
+  height: clamp(160px, 24vw, 300px);
+  background: linear-gradient(135deg, rgba(221, 95, 52, 0.28), rgba(215, 166, 74, 0.2));
+  border-radius: 1.2rem;
+  transform: rotate(-4deg);
+  pointer-events: none;
+  z-index: 0;
+  box-shadow: var(--eva-shadow);
+}
+
+.eva-kicker {
+  position: relative;
+  z-index: 1;
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--eva-clay) 76%, #432d21);
+  opacity: 1;
+  margin: 0 0 0.6rem;
+}
+
+.eva-coffee-box-hero h1 {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  max-width: 14ch;
+  line-height: 0.96;
+  letter-spacing: -0.03em;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: clamp(2.45rem, 7vw, 5.25rem);
+}
+
+.eva-subtitle {
+  position: relative;
+  z-index: 1;
+  margin: 1rem 0 0;
+  max-width: 43ch;
+  color: rgba(45, 33, 26, 0.85);
+  font-size: clamp(1rem, 2.2vw, 1.18rem);
+  overflow-wrap: anywhere;
+}
+
+.eva-benefits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1.2rem 0 0;
+  padding: 0;
+  list-style: none;
+  position: relative;
+  z-index: 1;
+}
+
+.eva-benefits li {
+  background: rgba(252, 248, 240, 0.9);
+  border: 1px solid rgba(128, 88, 51, 0.22);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  width: fit-content;
+  max-width: 100%;
+  font-size: 0.9rem;
+  color: rgba(63, 44, 32, 0.9);
+  overflow-wrap: anywhere;
+}
+
+.eva-choose {
+  padding: 0.75rem 0 3rem;
+}
+
+.eva-choose h2,
+.eva-faq h2 {
+  margin: 0 0 0.9rem;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
+}
+
+.eva-section-note {
+  margin: 0 0 1rem;
+  max-width: 42ch;
+  color: rgba(70, 48, 35, 0.86);
+  font-size: 0.98rem;
+}
+
+.eva-comparison {
+  margin-top: 0.8rem;
+}
+
+.eva-comparison-grid {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.eva-comparison-card {
+  background: linear-gradient(178deg, rgba(255, 252, 247, 0.98), rgba(255, 248, 239, 0.96));
+  border: 1px solid rgba(128, 88, 51, 0.2);
+  border-radius: 1.35rem;
+  padding: 1.15rem;
+  box-shadow: var(--eva-shadow);
+}
+
+.eva-comparison-card.is-featured {
+  border-color: rgba(221, 95, 52, 0.5);
+  background:
+    linear-gradient(165deg, rgba(255, 236, 218, 0.95), rgba(255, 249, 241, 0.98) 55%),
+    radial-gradient(circle at 14% 8%, rgba(221, 95, 52, 0.18), transparent 45%);
+  transform: translateY(-6px);
+}
+
+.eva-comparison-title {
+  margin: 0.8rem 0 0;
+  font-size: 1.24rem;
+  line-height: 1.1;
+}
+
+.eva-comparison-card.is-featured .eva-comparison-title {
+  font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+}
+
+.eva-compare-list {
+  margin: 0.85rem 0 0;
+}
+
+.eva-compare-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.28rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid rgba(74, 57, 51, 0.2);
+}
+
+.eva-compare-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.eva-compare-row dt {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(85, 58, 41, 0.92);
+}
+
+.eva-compare-row dd {
+  margin: 0;
+  color: rgba(53, 35, 25, 0.94);
+}
+
+.eva-compare-cta {
+  width: 100%;
+  margin-top: 0.95rem;
+  border: 1px solid rgba(98, 67, 46, 0.38);
+  background: rgba(255, 253, 249, 0.9);
+  color: rgba(53, 35, 25, 0.95);
+  min-height: 3rem;
+  border-radius: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease-out, background-color 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.eva-compare-cta:active:not(:disabled) {
+  border-color: rgba(228, 88, 38, 0.56);
+  background: rgba(228, 88, 38, 0.1);
+}
+
+.eva-compare-cta.is-featured {
+  border-color: rgba(221, 95, 52, 0.78);
+  background: linear-gradient(140deg, rgba(224, 96, 53, 0.98), rgba(197, 75, 38, 0.98));
+  color: #fff6ee;
+}
+
+.eva-compare-helper {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+  color: rgba(95, 55, 31, 0.9);
+}
+
+.eva-compare-cta:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.eva-configure-title {
+  margin-top: 1.6rem !important;
+}
+
+.eva-cards {
+  display: grid;
+  gap: 1rem;
+}
+
+.eva-card {
+  background: rgba(255, 249, 241, 0.8);
+  border: 1px solid rgba(128, 88, 51, 0.2);
+  border-radius: 1.1rem;
+  box-shadow: 0 10px 24px rgba(58, 38, 26, 0.09);
+  padding: 1rem;
+  position: relative;
+  min-width: 0;
+}
+
+.eva-card.is-featured {
+  border-color: rgba(221, 95, 52, 0.36);
+  background: rgba(255, 244, 232, 0.86);
+}
+
+.eva-card.eva-card-targeted {
+  outline: 3px solid rgba(221, 95, 52, 0.33);
+  outline-offset: 2px;
+  border-color: rgba(221, 95, 52, 0.62);
+  box-shadow: 0 18px 34px rgba(66, 42, 27, 0.16);
+}
+
+.eva-badge {
+  display: inline-block;
+  background: rgba(223, 94, 49, 0.15);
+  color: rgba(108, 47, 24, 0.96);
+  border: 1px solid rgba(221, 95, 52, 0.42);
+  font-size: 0.875rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  margin: 0 0 0.8rem;
+}
+
+.eva-card-media {
+  border-radius: 1rem;
+  overflow: hidden;
+  background: var(--background-color);
+}
+
+.eva-product-image,
+.eva-image-placeholder {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  object-fit: cover;
+}
+
+.eva-image-placeholder {
+  background: linear-gradient(160deg, var(--background-color), rgba(74, 57, 51, 0.1));
+}
+
+.eva-card h3 {
+  margin: 0.2rem 0 0;
+  font-size: 1.22rem;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.eva-price {
+  margin: 0;
+  font-size: 1.14rem;
+  font-weight: 700;
+}
+
+.eva-field {
+  margin-top: 0.7rem;
+}
+
+.eva-field label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+}
+
+.eva-field-note {
+  margin: 0 0 0.45rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.eva-select {
+  width: 100%;
+  min-height: 2.85rem;
+  border: 1px solid rgba(105, 72, 50, 0.36);
+  border-radius: 0.9rem;
+  padding: 0.5rem 0.8rem;
+  background: rgba(255, 253, 249, 0.96);
+  color: rgba(44, 30, 22, 0.95);
+}
+
+.eva-select:focus-visible,
+.eva-cta:focus-visible,
+.eva-compare-cta:focus-visible,
+.eva-accordion-trigger:focus-visible {
+  outline: 3px solid var(--brand-color-transparent);
+  outline-offset: 2px;
+}
+
+.eva-cta-group {
+  margin-top: 0.8rem;
+}
+
+.eva-cta {
+  width: 100%;
+  border: 1px solid var(--brand-color);
+  background: var(--brand-color);
+  color: #fff7ef;
+  min-height: 3rem;
+  border-radius: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.eva-cta:active:not(:disabled) {
+  background: var(--brand-color-hover);
+  border-color: var(--brand-color-hover);
+}
+
+.eva-cta:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.eva-cta.is-success {
+  background: var(--brand-color-hover);
+  border-color: var(--brand-color-hover);
+}
+
+.eva-live {
+  margin: 0.45rem 0 0;
+  min-height: 1.2em;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+.eva-trust-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: rgba(74, 57, 51, 0.9);
+}
+
+.eva-admin-warning {
+  margin-top: 1rem;
+  border: 1px solid #d8ad66;
+  background: #fff8ec;
+  border-radius: 1rem;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.93rem;
+}
+
+.eva-admin-warning ul {
+  margin: 0.45rem 0 0;
+  padding-inline-start: 1rem;
+}
+
+.eva-faq-wrap {
+  background: rgba(255, 252, 247, 0.72);
+  border: 1px solid rgba(128, 88, 51, 0.2);
+  border-radius: 1rem;
+  box-shadow: 0 12px 26px rgba(67, 44, 30, 0.1);
+  padding: 1.1rem;
+}
+
+.eva-accordion-item {
+  border-top: 1px solid rgba(74, 57, 51, 0.15);
+}
+
+.eva-accordion-item:first-child {
+  border-top: 0;
+}
+
+.eva-accordion-trigger {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 1rem 0;
+  cursor: pointer;
+}
+
+.eva-accordion-trigger::after {
+  content: "+";
+  float: right;
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+.eva-accordion-trigger[aria-expanded="true"]::after {
+  content: "-";
+}
+
+.eva-accordion-panel {
+  padding: 0 0 1rem;
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+.eva-accordion-panel p {
+  margin: 0;
+}
+
+.eva-accordion-trigger span,
+.eva-accordion-panel p,
+.eva-live {
+  overflow-wrap: anywhere;
+}
+
+.eva-live.is-error {
+  color: #8d2a11;
+  opacity: 1;
+}
+
+.eva-live.is-success {
+  color: #1f5f2b;
+  opacity: 1;
+}
+
+.eva-live.is-info {
+  color: #7a4a24;
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .eva-cta:hover:not(:disabled) {
+    background: var(--brand-color-hover);
+    border-color: var(--brand-color-hover);
+    transform: translateY(-1px);
+  }
+
+  .eva-compare-cta:hover:not(:disabled) {
+    border-color: rgba(221, 95, 52, 0.64);
+    background: rgba(221, 95, 52, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .eva-compare-cta.is-featured:hover:not(:disabled) {
+    background: linear-gradient(140deg, rgba(209, 86, 46, 1), rgba(187, 65, 30, 1));
+    border-color: rgba(192, 66, 31, 0.95);
+  }
+}
+
+@media (max-width: 699px) {
+  .eva-wrap {
+    width: min(1160px, calc(100% - 1.5rem));
+  }
+
+  .eva-card,
+  .eva-comparison-card,
+  .eva-faq-wrap {
+    border-radius: 0.9rem;
+  }
+
+  .eva-coffee-box-hero::after {
+    inset: auto -5vw -1.7rem auto;
+    width: 220px;
+    height: 160px;
+  }
+}
+
+@media (min-width: 700px) and (max-width: 1023px) {
+  .eva-wrap {
+    width: min(1160px, calc(100% - 2.75rem));
+  }
+
+  .eva-benefits {
+    gap: 0.62rem;
+  }
+
+  .eva-comparison-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .eva-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .eva-card,
+  .eva-comparison-card,
+  .eva-faq-wrap {
+    padding: 1.2rem;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .eva-coffee-box-hero {
+    padding-top: 2rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .eva-choose {
+    padding-top: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eva-cta {
+    transition: none;
+  }
+
+  .eva-compare-cta {
+    transition: none;
+  }
+
+  .eva-cta:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .eva-compare-cta:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .eva-kicker,
+  .eva-coffee-box-hero h1,
+  .eva-subtitle,
+  .eva-comparison-card,
+  .eva-card,
+  .eva-faq-wrap {
+    animation: none;
+  }
+}
+
+@media print {
+  .eva-coffee-box {
+    background: #fff;
+    color: #111;
+    padding-bottom: 0;
+  }
+
+  .eva-cta-group,
+  .eva-accordion-trigger::after {
+    display: none;
+  }
+
+  .eva-cards {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  .eva-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .eva-card,
+  .eva-comparison-card,
+  .eva-faq-wrap {
+    border-top: 1px solid #ccc;
+    box-shadow: none;
+    background: transparent;
+    break-inside: avoid;
+  }
+
+  .eva-accordion-panel {
+    display: block !important;
+    opacity: 1;
+  }
+}
+
+@media (min-width: 1024px) {
+  .eva-coffee-box-hero {
+    padding-top: 5rem;
+  }
+
+  .eva-benefits {
+    gap: 0.75rem;
+  }
+
+  .eva-comparison-grid {
+    grid-template-columns: minmax(0, 1.16fr) minmax(0, 0.84fr);
+    gap: 1.3rem;
+  }
+
+  .eva-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.2rem;
+  }
+
+  .eva-card,
+  .eva-comparison-card,
+  .eva-faq-wrap {
+    padding: 1.25rem;
+  }
+}
+
+.eva-kicker,
+.eva-coffee-box-hero h1,
+.eva-subtitle,
+.eva-comparison-card,
+.eva-card,
+.eva-faq-wrap {
+  animation: eva-rise 0.72s ease-out both;
+}
+
+.eva-subtitle,
+.eva-comparison-card:nth-child(2),
+.eva-cards .eva-card:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+@keyframes eva-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
