@@ -46,7 +46,6 @@ FILES=(
   "page-templates/landing-coffee-box.php"
   "assets/css/eva-coffee-box.css"
   "assets/js/eva-coffee-box.js"
-  "functions.php"
 )
 
 for file in "${FILES[@]}"; do
