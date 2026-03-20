@@ -32,12 +32,21 @@ Production-ready custom landing page template for a WooCommerce store inside `ka
 1. Copy files to your child theme as listed above.
 2. Open:
    - `wp-content/themes/kaffen-child/page-templates/landing-coffee-box.php`
-3. Replace constants at the top with real product IDs:
+3. On the server, create this file (do not sync it from this repo):
+   - `wp-content/themes/kaffen-child/eva-coffee-box.local.php`
+
+   You can start from:
+   - `wp-content/themes/kaffen-child/eva-coffee-box.local.example.php`
+
+   Put your real product IDs there:
 
 ```php
-const BOX_STARTER_ID = 123; // Replace with real product IDs.
-const BOX_FULL_ID    = 456; // Replace with real product IDs.
+<?php
+define( 'EVA_BOX_STARTER_ID', 123 );
+define( 'EVA_BOX_FULL_ID', 456 );
 ```
+
+   This keeps IDs server-local so `rsync` updates won't overwrite them.
 
 4. Add the snippet below to your existing `wp-content/themes/kaffen-child/functions.php`
    (append it; do **not** replace your whole file):
@@ -126,7 +135,7 @@ function kaffen_child_enqueue_coffee_box_assets() {
 			'checkoutUrl'    => $checkout_url,
 			'requestTimeout' => 12000,
 			'i18n'           => array(
-				'selectPrompt'    => __( 'Seleziona entrambe le macinature', 'kaffen-child' ),
+				'selectPrompt'    => __( 'Seleziona la macinatura richiesta', 'kaffen-child' ),
 				'addToCart'       => __( 'Aggiungi al carrello', 'kaffen-child' ),
 				'adding'          => __( 'Aggiunta in corso...', 'kaffen-child' ),
 				'goCheckout'      => __( 'Vai al checkout', 'kaffen-child' ),
@@ -154,10 +163,15 @@ add_action( 'wp_enqueue_scripts', 'kaffen_child_enqueue_coffee_box_assets' );
 
 ## Product requirements
 
-Both products must be WooCommerce **variable** products and include these exact variation attributes:
+Both products must be WooCommerce **variable** products.
 
-- `Macinatura Caffè Moka/Espresso`
-- `Macinatura Caffè Filtro`
+Required variation attributes by product:
+
+- `Discovery Boss Mode`
+  - `Macinatura Caffè Moka/Espresso`
+  - `Macinatura Caffè Filtro`
+- `Discovery Level Up`
+  - `Macinatura Caffè Moka/Espresso`
 
 If IDs are `0`, product is missing, product is not variable, or attributes are missing, an admin-only warning is shown on the landing.
 

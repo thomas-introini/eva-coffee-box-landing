@@ -2,6 +2,7 @@
   "use strict";
 
   var config = window.EvaCoffeeBoxConfig || {};
+  var storeApiSessionPromise = null;
 
   function getMessage(key, fallback) {
     if (config.i18n && config.i18n[key]) {
@@ -12,7 +13,47 @@
   }
 
   function normalizeValue(value) {
-    return String(value || "").trim().toLowerCase();
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  function compactValue(value) {
+    return normalizeValue(value).replace(/-/g, "");
+  }
+
+  function toRequestAttributeValue(value) {
+    return String(value || "").trim();
+  }
+
+  function normalizeAttributeKey(key) {
+    return normalizeValue(String(key || "").replace(/^attribute_/i, "").replace(/^pa_/i, ""));
+  }
+
+  function getVariationAttributeValue(attributes, selectedKey) {
+    if (!attributes || !selectedKey) {
+      return "";
+    }
+
+    if (Object.prototype.hasOwnProperty.call(attributes, selectedKey)) {
+      return attributes[selectedKey];
+    }
+
+    var normalizedSelectedKey = normalizeAttributeKey(selectedKey);
+    var attributeKeys = Object.keys(attributes);
+
+    for (var i = 0; i < attributeKeys.length; i += 1) {
+      var candidateKey = attributeKeys[i];
+      if (normalizeAttributeKey(candidateKey) === normalizedSelectedKey) {
+        return attributes[candidateKey];
+      }
+    }
+
+    return "";
   }
 
   function parseJsonSafely(raw) {
@@ -51,6 +92,92 @@
     return getMessage("error", "Qualcosa è andato storto. Riprova.");
   }
 
+  function getStoreApiCartUrl() {
+    if (config.storeApiCartUrl) {
+      return config.storeApiCartUrl;
+    }
+
+    return window.location.origin + "/wp-json/wc/store/v1/cart";
+  }
+
+  function getStoreApiAddItemUrl() {
+    if (config.storeApiAddItemUrl) {
+      return config.storeApiAddItemUrl;
+    }
+
+    return getStoreApiCartUrl() + "/add-item";
+  }
+
+  function getHeaderValue(headers, name) {
+    if (!headers || !name) {
+      return "";
+    }
+
+    return headers.get(name) || headers.get(name.toLowerCase()) || "";
+  }
+
+  function fetchStoreApiSession() {
+    if (storeApiSessionPromise) {
+      return storeApiSessionPromise;
+    }
+
+    storeApiSessionPromise = fetch(getStoreApiCartUrl(), {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+      },
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          throw { type: "http", status: response.status };
+        }
+
+        return response.text().then(function (rawData) {
+          var data = parseJsonSafely(rawData);
+
+          if (!data || typeof data !== "object") {
+            throw { type: "invalid-response" };
+          }
+
+          return {
+            nonce: getHeaderValue(response.headers, "Nonce"),
+            cartToken: getHeaderValue(response.headers, "Cart-Token"),
+          };
+        });
+      })
+      .catch(function (error) {
+        storeApiSessionPromise = null;
+        throw error;
+      });
+
+    return storeApiSessionPromise;
+  }
+
+  function primeStoreApiSession() {
+    fetchStoreApiSession().catch(function () {
+      return null;
+    });
+  }
+
+  function setStoreApiSession(session) {
+    storeApiSessionPromise = Promise.resolve({
+      nonce: session && session.nonce ? session.nonce : "",
+      cartToken: session && session.cartToken ? session.cartToken : "",
+    });
+  }
+
+  function refreshCartFragments() {
+    if (document.body) {
+      document.body.dispatchEvent(new CustomEvent("wc_fragment_refresh"));
+    }
+
+    if (window.jQuery && window.jQuery(document.body).trigger) {
+      window.jQuery(document.body).trigger("wc_fragment_refresh");
+      window.jQuery(document.body).trigger("added_to_cart");
+    }
+  }
+
   function matchVariation(variations, selectedAttributes) {
     for (var i = 0; i < variations.length; i += 1) {
       var variation = variations[i];
@@ -69,9 +196,15 @@
       for (var k = 0; k < keys.length; k += 1) {
         var key = keys[k];
         var selected = normalizeValue(selectedAttributes[key]);
-        var candidate = normalizeValue(variation.attributes[key]);
+        var candidateRaw = getVariationAttributeValue(variation.attributes, key);
 
-        if (!selected || selected !== candidate) {
+        if (candidateRaw === "") {
+          continue;
+        }
+
+        var candidate = normalizeValue(candidateRaw);
+
+        if (!selected || (selected !== candidate && compactValue(selectedAttributes[key]) !== compactValue(candidateRaw))) {
           isMatch = false;
           break;
         }
@@ -165,6 +298,8 @@
         return;
       }
 
+      primeStoreApiSession();
+
       highlightTargetCard(targetCard, cards);
 
       var reduceMotion =
@@ -203,7 +338,7 @@
     }
   }
 
-  function initCard(card) {
+    function initCard(card) {
     var selectEls = card.querySelectorAll(".eva-select");
     var button = card.querySelector(".eva-cta");
     var liveRegion = card.querySelector(".eva-live");
@@ -318,7 +453,7 @@
     }
 
     function addToCart() {
-      if (!selectedVariation || !config.ajaxUrl || inFlight) {
+      if (!selectedVariation || inFlight) {
         return;
       }
 
@@ -330,60 +465,85 @@
       setLoadingState(true);
 
       var attrs = collectSelectedAttributes();
-      var payload = new URLSearchParams();
-      payload.set("product_id", productId);
-      payload.set("quantity", "1");
-      payload.set("variation_id", String(selectedVariation.variation_id));
-
-      Object.keys(attrs).forEach(function (attributeKey) {
-        payload.set("variation[" + attributeKey + "]", attrs[attributeKey]);
-      });
-
       var controller = null;
       var timeoutId = null;
-      var requestOptions = {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        },
-        body: payload.toString(),
-      };
 
       if (typeof window.AbortController === "function") {
         controller = new window.AbortController();
-        requestOptions.signal = controller.signal;
         timeoutId = window.setTimeout(function () {
           controller.abort();
         }, requestTimeout);
       }
 
-      fetch(config.ajaxUrl, requestOptions)
-        .then(function (response) {
-          if (!response.ok) {
-            throw { type: "http", status: response.status };
+      fetchStoreApiSession()
+        .then(function (session) {
+          var variation = Object.keys(attrs).map(function (attributeKey) {
+            return {
+              attribute: attributeKey,
+              value: toRequestAttributeValue(attrs[attributeKey]),
+            };
+          });
+
+          var headers = {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          };
+
+          if (session.nonce) {
+            headers.Nonce = session.nonce;
           }
 
-          return response.text();
+          if (session.cartToken) {
+            headers["Cart-Token"] = session.cartToken;
+          }
+
+          var requestOptions = {
+            method: "POST",
+            credentials: "same-origin",
+            headers: headers,
+            body: JSON.stringify({
+              id: Number(productId),
+              quantity: 1,
+              variation: variation,
+            }),
+          };
+
+          if (controller) {
+            requestOptions.signal = controller.signal;
+          }
+
+          return fetch(getStoreApiAddItemUrl(), requestOptions);
         })
-        .then(function (rawData) {
-          var data = parseJsonSafely(rawData);
+        .then(function (response) {
+          return response.text().then(function (rawData) {
+            var data = parseJsonSafely(rawData);
+            var nextSession = {
+              nonce: getHeaderValue(response.headers, "Nonce"),
+              cartToken: getHeaderValue(response.headers, "Cart-Token"),
+            };
 
-          if (!data || typeof data !== "object") {
-            throw { type: "invalid-response" };
-          }
+            if (!response.ok) {
+              if (data && data.message) {
+                throw { type: "store-api", message: data.message, status: response.status };
+              }
 
-          if (data && data.error && data.product_url) {
-            window.location.href = data.product_url;
-            return;
-          }
+              throw { type: "http", status: response.status };
+            }
 
-          updateAvailabilityMessage(getMessage("added", "Aggiunto ✓"), "success");
-          toCheckoutMode();
+            if (!data || typeof data !== "object") {
+              throw { type: "invalid-response" };
+            }
 
-          if (document.body) {
-            document.body.dispatchEvent(new CustomEvent("wc_fragment_refresh"));
-          }
+            if (data.errors && data.errors.length) {
+              throw { type: "store-api", message: data.errors[0].message || "", status: response.status };
+            }
+
+            setStoreApiSession(nextSession);
+
+            updateAvailabilityMessage(getMessage("added", "Aggiunto ✓"), "success");
+            toCheckoutMode();
+            refreshCartFragments();
+          });
         })
         .catch(function (error) {
           if (error && error.name === "AbortError") {
@@ -398,6 +558,11 @@
 
           if (error && error.type === "invalid-response") {
             updateAvailabilityMessage(getMessage("invalidResponse", "Risposta non valida dal server. Riprova."), "error");
+            return;
+          }
+
+          if (error && error.type === "store-api") {
+            updateAvailabilityMessage(error.message || getMessage("error", "Qualcosa è andato storto. Riprova."), "error");
             return;
           }
 
@@ -418,6 +583,7 @@
 
     for (var i = 0; i < selectEls.length; i += 1) {
       selectEls[i].addEventListener("change", function () {
+        updateAvailabilityMessage("");
         syncButton();
       });
     }

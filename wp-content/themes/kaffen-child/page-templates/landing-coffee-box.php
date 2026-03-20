@@ -13,9 +13,6 @@ if ( ! function_exists( 'wc_get_product' ) ) {
 	return;
 }
 
-const BOX_STARTER_ID = 0; // Replace with real product IDs.
-const BOX_FULL_ID    = 0; // Replace with real product IDs.
-
 /**
  * Return URL preserving current query parameters.
  *
@@ -39,15 +36,18 @@ function eva_coffee_box_preserve_query_args( $url ) {
 /**
  * Build landing card context from product ID.
  *
- * @param int    $product_id Product ID.
- * @param string $shipping_note Shipping note.
+ * @param int      $product_id Product ID.
+ * @param string   $shipping_note Shipping note.
+ * @param string[] $required_labels Required variation labels.
  * @return array
  */
-function eva_coffee_box_build_card_data( $product_id, $shipping_note ) {
-	$required_labels = array(
-		'Macinatura Caffè Moka/Espresso',
-		'Macinatura Caffè Filtro',
-	);
+function eva_coffee_box_build_card_data( $product_id, $shipping_note, $required_labels = array() ) {
+	if ( empty( $required_labels ) ) {
+		$required_labels = array(
+			'Macinatura Caffè Moka/Espresso',
+			'Macinatura Caffè Filtro',
+		);
+	}
 
 	$card = array(
 		'product_id'     => (int) $product_id,
@@ -59,7 +59,7 @@ function eva_coffee_box_build_card_data( $product_id, $shipping_note ) {
 	);
 
 	if ( 0 === (int) $product_id ) {
-		$card['issues'][] = __( 'ID prodotto non impostato. Sostituisci la costante con un ID reale.', 'kaffen-child' );
+		$card['issues'][] = __( 'ID prodotto non impostato. Definisci EVA_BOX_STARTER_ID e EVA_BOX_FULL_ID in eva-coffee-box.local.php (o in wp-config.php).', 'kaffen-child' );
 		return $card;
 	}
 
@@ -83,6 +83,7 @@ function eva_coffee_box_build_card_data( $product_id, $shipping_note ) {
 		return $card;
 	}
 
+	$available_variations = $product->get_available_variations();
 	$variation_attributes = $product->get_variation_attributes();
 
 	foreach ( $required_labels as $label ) {
@@ -90,12 +91,52 @@ function eva_coffee_box_build_card_data( $product_id, $shipping_note ) {
 		$found_key   = '';
 
 		foreach ( $variation_attributes as $attribute_key => $options ) {
-			$key_slug = str_replace( 'attribute_', '', (string) $attribute_key );
+			$attribute_name = (string) $attribute_key;
+			$key_slug       = str_replace( 'attribute_', '', $attribute_name );
 
-			if ( $key_slug === $target_slug ) {
+			if ( 0 === strpos( $key_slug, 'pa_' ) ) {
+				$key_slug = substr( $key_slug, 3 );
+			}
+
+			$key_slug = sanitize_title( $key_slug );
+
+			if ( $attribute_name === $label || $key_slug === $target_slug ) {
+				$variation_key = '';
+
+				if ( 0 === strpos( $attribute_name, 'attribute_' ) ) {
+					$variation_key = $attribute_name;
+				} elseif ( 0 === strpos( $attribute_name, 'pa_' ) ) {
+					$variation_key = 'attribute_' . $attribute_name;
+				} else {
+					foreach ( $available_variations as $variation ) {
+						if ( empty( $variation['attributes'] ) || ! is_array( $variation['attributes'] ) ) {
+							continue;
+						}
+
+						foreach ( array_keys( $variation['attributes'] ) as $variation_attribute_key ) {
+							$variation_slug = str_replace( 'attribute_', '', (string) $variation_attribute_key );
+
+							if ( 0 === strpos( $variation_slug, 'pa_' ) ) {
+								$variation_slug = substr( $variation_slug, 3 );
+							}
+
+							$variation_slug = sanitize_title( $variation_slug );
+
+							if ( $variation_slug === $target_slug ) {
+								$variation_key = (string) $variation_attribute_key;
+								break 2;
+							}
+						}
+					}
+
+					if ( '' === $variation_key ) {
+						$variation_key = 'attribute_' . sanitize_title( $attribute_name );
+					}
+				}
+
 				$found_key = (string) $attribute_key;
 				$card['attributes'][ $label ] = array(
-					'key'     => (string) $attribute_key,
+					'key'     => $variation_key,
 					'options' => array_values( array_filter( array_map( 'trim', (array) $options ) ) ),
 				);
 				break;
@@ -111,15 +152,36 @@ function eva_coffee_box_build_card_data( $product_id, $shipping_note ) {
 		}
 	}
 
-	$available_variations = $product->get_available_variations();
 	$card['variations_json'] = wp_json_encode( $available_variations );
 	$card['product']         = $product;
 
 	return $card;
 }
 
-$full_card    = eva_coffee_box_build_card_data( BOX_FULL_ID, __( 'Spedizione inclusa', 'kaffen-child' ) );
-$starter_card = eva_coffee_box_build_card_data( BOX_STARTER_ID, __( '+5,50€ spedizione', 'kaffen-child' ) );
+$local_config_path = trailingslashit( get_stylesheet_directory() ) . 'eva-coffee-box.local.php';
+
+if ( file_exists( $local_config_path ) ) {
+	require_once $local_config_path;
+}
+
+$box_starter_id = defined( 'EVA_BOX_STARTER_ID' ) ? (int) EVA_BOX_STARTER_ID : 0;
+$box_full_id    = defined( 'EVA_BOX_FULL_ID' ) ? (int) EVA_BOX_FULL_ID : 0;
+
+$full_card    = eva_coffee_box_build_card_data(
+	$box_full_id,
+	__( 'Spedizione inclusa', 'kaffen-child' ),
+	array(
+		'Macinatura Caffè Moka/Espresso',
+		'Macinatura Caffè Filtro',
+	)
+);
+$starter_card = eva_coffee_box_build_card_data(
+	$box_starter_id,
+	__( '+5,50€ spedizione', 'kaffen-child' ),
+	array(
+		'Macinatura Caffè Moka/Espresso',
+	)
+);
 
 $is_admin_notice_visible = current_user_can( 'manage_options' );
 
@@ -134,7 +196,7 @@ $cards = array(
 		'audience'     => __( 'Per chi vuole degustare e confrontare 4 identità di caffè', 'kaffen-child' ),
 		'shipping'     => __( 'Inclusa', 'kaffen-child' ),
 		'compare_cta'  => __( 'Scelgo Boss Mode', 'kaffen-child' ),
-		'live_message' => __( 'Hai scelto Boss Mode. Seleziona le macinature per continuare.', 'kaffen-child' ),
+		'live_message' => __( 'Boss Mode selezionato.', 'kaffen-child' ),
 	),
 	array(
 		'id'          => 'starter',
@@ -146,7 +208,7 @@ $cards = array(
 		'audience'     => __( 'Per chi vuole fare un passo oltre la tazza classica', 'kaffen-child' ),
 		'shipping'     => __( '+5,50€', 'kaffen-child' ),
 		'compare_cta'  => __( 'Scelgo Level Up', 'kaffen-child' ),
-		'live_message' => __( 'Hai scelto Level Up. Seleziona le macinature per continuare.', 'kaffen-child' ),
+		'live_message' => __( 'Level Up selezionato.', 'kaffen-child' ),
 	),
 );
 
@@ -184,6 +246,8 @@ get_header();
 						<article class="eva-comparison-card<?php echo $is_featured ? ' is-featured' : ''; ?>" role="listitem">
 							<?php if ( $is_featured ) : ?>
 								<p class="eva-badge"><?php esc_html_e( 'Più completo', 'kaffen-child' ); ?></p>
+                            <?php else : ?>
+								<p class="eva-badge"><?php esc_html_e( 'Discovery', 'kaffen-child' ); ?></p>
 							<?php endif; ?>
 
 							<div class="eva-card-media">
@@ -192,12 +256,14 @@ get_header();
 									echo wp_kses_post(
 										wp_get_attachment_image(
 											$product->get_image_id(),
-											'large',
+											'full',
 											false,
 											array(
 												'class'    => 'eva-product-image',
 												'loading'  => 'lazy',
 												'decoding' => 'async',
+												'sizes'    => '(min-width: 1024px) 296px, (min-width: 700px) 44vw, 86vw',
+                                                'height'   => 500,
 												'alt'      => $product->get_name(),
 											)
 										)
@@ -266,6 +332,7 @@ get_header();
 					$attr_filter  = isset( $card['attributes']['Macinatura Caffè Filtro'] ) ? $card['attributes']['Macinatura Caffè Filtro'] : null;
 					$moka_note    = 'full' === $item['id'] ? __( 'Per Ottantaventi e Saudade', 'kaffen-child' ) : __( 'Per Saudade', 'kaffen-child' );
 					$filter_note  = 'full' === $item['id'] ? __( 'Per Libertad e Jebena', 'kaffen-child' ) : __( 'Per Jebena Drip Bags', 'kaffen-child' );
+					$has_filter   = (bool) $attr_filter;
 					?>
 					<article class="eva-card<?php echo $is_featured ? ' is-featured' : ''; ?>" data-card-id="<?php echo esc_attr( $item['id'] ); ?>" <?php echo $product ? 'data-product-id="' . esc_attr( $product->get_id() ) . '"' : ''; ?> <?php echo $product ? 'data-variations="' . esc_attr( $card['variations_json'] ) . '"' : ''; ?>>
 						<h3 class="eva-card-title" dir="auto" tabindex="-1"><?php echo esc_html( $product_name ); ?></h3>
@@ -281,7 +348,7 @@ get_header();
 							</div>
 						<?php endif; ?>
 
-						<?php if ( $product && empty( $card['issues'] ) && $attr_moka && $attr_filter ) : ?>
+						<?php if ( $product && empty( $card['issues'] ) && $attr_moka ) : ?>
 							<form class="eva-variation-form" novalidate>
 								<div class="eva-field">
 									<label for="eva-moka-<?php echo esc_attr( $item['id'] ); ?>"><?php esc_html_e( 'Macinatura Caffè Moka/Espresso', 'kaffen-child' ); ?></label>
@@ -294,16 +361,18 @@ get_header();
 									</select>
 								</div>
 
-								<div class="eva-field">
-									<label for="eva-filter-<?php echo esc_attr( $item['id'] ); ?>"><?php esc_html_e( 'Macinatura Caffè Filtro', 'kaffen-child' ); ?></label>
-									<p id="eva-filter-note-<?php echo esc_attr( $item['id'] ); ?>" class="eva-field-note"><?php echo esc_html( $filter_note ); ?></p>
-									<select id="eva-filter-<?php echo esc_attr( $item['id'] ); ?>" class="eva-select" data-attribute-key="<?php echo esc_attr( $attr_filter['key'] ); ?>" data-attribute-label="<?php esc_attr_e( 'Macinatura Caffè Filtro', 'kaffen-child' ); ?>" aria-describedby="eva-filter-note-<?php echo esc_attr( $item['id'] ); ?>" aria-required="true" required>
-										<option value=""><?php esc_html_e( 'Seleziona...', 'kaffen-child' ); ?></option>
-										<?php foreach ( $attr_filter['options'] as $option ) : ?>
-											<option value="<?php echo esc_attr( $option ); ?>"><?php echo esc_html( $option ); ?></option>
-										<?php endforeach; ?>
-									</select>
-								</div>
+								<?php if ( $has_filter ) : ?>
+									<div class="eva-field">
+										<label for="eva-filter-<?php echo esc_attr( $item['id'] ); ?>"><?php esc_html_e( 'Macinatura Caffè Filtro', 'kaffen-child' ); ?></label>
+										<p id="eva-filter-note-<?php echo esc_attr( $item['id'] ); ?>" class="eva-field-note"><?php echo esc_html( $filter_note ); ?></p>
+										<select id="eva-filter-<?php echo esc_attr( $item['id'] ); ?>" class="eva-select" data-attribute-key="<?php echo esc_attr( $attr_filter['key'] ); ?>" data-attribute-label="<?php esc_attr_e( 'Macinatura Caffè Filtro', 'kaffen-child' ); ?>" aria-describedby="eva-filter-note-<?php echo esc_attr( $item['id'] ); ?>" aria-required="true" required>
+											<option value=""><?php esc_html_e( 'Seleziona...', 'kaffen-child' ); ?></option>
+											<?php foreach ( $attr_filter['options'] as $option ) : ?>
+												<option value="<?php echo esc_attr( $option ); ?>"><?php echo esc_html( $option ); ?></option>
+											<?php endforeach; ?>
+										</select>
+									</div>
+								<?php endif; ?>
 
 								<div class="eva-cta-group">
 									<button type="button" class="eva-cta" data-checkout-url="<?php echo esc_url( eva_coffee_box_preserve_query_args( wc_get_checkout_url() ) ); ?>" disabled>
@@ -383,5 +452,5 @@ get_footer();
 How to use:
 1) Create a WordPress page with slug /coffee-box
 2) Assign template "Coffee Box Landing"
-3) Replace BOX_STARTER_ID and BOX_FULL_ID with real product IDs
+3) Define EVA_BOX_STARTER_ID and EVA_BOX_FULL_ID in eva-coffee-box.local.php (or wp-config.php)
 */

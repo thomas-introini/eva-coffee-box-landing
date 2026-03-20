@@ -20,3 +20,6 @@ pnpm-debug.log*
 
 # Local helper artifacts
 .superpowers/
+
+# Server-local coffee box IDs (do not commit)
+wp-content/themes/kaffen-child/eva-coffee-box.local.php

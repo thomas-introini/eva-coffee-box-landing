@@ -59,7 +59,6 @@ RSYNC_OPTS=(
   -avz
   --progress
   --human-readable
-  --mkpath
 )
 
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
@@ -69,6 +68,10 @@ fi
 echo "Syncing files to ${HOST}:${REMOTE_THEME_PATH}"
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
   echo "DRY_RUN enabled: no files will be changed on remote"
+else
+  # macOS ships an older rsync that does not support --mkpath.
+  # Ensure destination directories exist via SSH first.
+  ssh "${HOST}" "mkdir -p '${REMOTE_THEME_PATH}/page-templates' '${REMOTE_THEME_PATH}/assets/css' '${REMOTE_THEME_PATH}/assets/js'"
 fi
 
 rsync "${RSYNC_OPTS[@]}" \
