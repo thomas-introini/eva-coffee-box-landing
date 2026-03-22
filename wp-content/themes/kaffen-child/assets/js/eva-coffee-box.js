@@ -56,6 +56,87 @@
     return "";
   }
 
+  function getCanonicalVariationAttributeKey(attributes, selectedKey) {
+    if (!attributes || !selectedKey) {
+      return selectedKey || "";
+    }
+
+    if (Object.prototype.hasOwnProperty.call(attributes, selectedKey)) {
+      return selectedKey;
+    }
+
+    var normalizedSelectedKey = normalizeAttributeKey(selectedKey);
+    var attributeKeys = Object.keys(attributes);
+
+    for (var i = 0; i < attributeKeys.length; i += 1) {
+      var candidateKey = attributeKeys[i];
+      if (normalizeAttributeKey(candidateKey) === normalizedSelectedKey) {
+        return candidateKey;
+      }
+    }
+
+    return selectedKey;
+  }
+
+  function buildVariationRequest(selectedAttributes, variation) {
+    var attrs = selectedAttributes || {};
+    var variationAttributes = variation && variation.attributes ? variation.attributes : {};
+
+    return Object.keys(attrs).map(function (selectedKey) {
+      var canonicalKey = getCanonicalVariationAttributeKey(variationAttributes, selectedKey);
+      var canonicalValue = getVariationAttributeValue(variationAttributes, canonicalKey);
+      var value = canonicalValue === "" ? attrs[selectedKey] : canonicalValue;
+
+      return {
+        attribute: canonicalKey,
+        value: toRequestAttributeValue(value),
+      };
+    });
+  }
+
+  function resolveStickyCtaState(input) {
+    var context = input || {};
+    var activeCard = context.activeCard || null;
+
+    if (!context.activeCardId || !activeCard) {
+      return {
+        action: "choose",
+        label: context.chooseLabel || "Scegli il box",
+        disabled: false,
+      };
+    }
+
+    if (activeCard.isCheckoutMode) {
+      return {
+        action: "checkout",
+        label: context.checkoutLabel || "Vai al checkout",
+        disabled: false,
+      };
+    }
+
+    if (activeCard.isLoading) {
+      return {
+        action: "add",
+        label: context.loadingLabel || "Aggiunta in corso...",
+        disabled: true,
+      };
+    }
+
+    if (activeCard.canAddToCart === false) {
+      return {
+        action: "add",
+        label: context.addToCartLabel || "Aggiungi al carrello",
+        disabled: true,
+      };
+    }
+
+    return {
+      action: "add",
+      label: context.addToCartLabel || "Aggiungi al carrello",
+      disabled: false,
+    };
+  }
+
   function parseJsonSafely(raw) {
     if (!raw) {
       return null;
@@ -66,6 +147,14 @@
     } catch (error) {
       return null;
     }
+  }
+
+  function debugLog() {
+    if (!config.debug || !window.console || typeof window.console.log !== "function") {
+      return;
+    }
+
+    window.console.log.apply(window.console, arguments);
   }
 
   function getHttpErrorMessage(status) {
@@ -272,59 +361,10 @@
     }
   }
 
-  function highlightTargetCard(targetCard, cards) {
-    for (var i = 0; i < cards.length; i += 1) {
-      cards[i].classList.remove("eva-card-targeted");
-    }
-
-    if (targetCard) {
-      targetCard.classList.add("eva-card-targeted");
-    }
-  }
-
-  function handleComparisonCtas(cards) {
+  function handleComparisonCtas(onSelectProduct) {
     var compareCtas = document.querySelectorAll("[data-eva-compare-cta]");
-    if (!compareCtas.length || !cards.length) {
+    if (!compareCtas.length) {
       return;
-    }
-
-    function moveToCard(targetCardId, liveMessage) {
-      if (!targetCardId) {
-        return;
-      }
-
-      var targetCard = document.querySelector('.eva-card[data-card-id="' + targetCardId + '"]');
-      if (!targetCard) {
-        return;
-      }
-
-      primeStoreApiSession();
-
-      highlightTargetCard(targetCard, cards);
-
-      var reduceMotion =
-        typeof window.matchMedia === "function" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-      targetCard.scrollIntoView({
-        behavior: reduceMotion ? "auto" : "smooth",
-        block: "start",
-      });
-
-      focusCardTarget(targetCard);
-
-      if (!liveMessage) {
-        return;
-      }
-
-      var liveRegion = targetCard.querySelector(".eva-live");
-      if (!liveRegion) {
-        return;
-      }
-
-      liveRegion.classList.remove("is-error", "is-success");
-      liveRegion.classList.add("is-info");
-      liveRegion.textContent = liveMessage;
     }
 
     for (var i = 0; i < compareCtas.length; i += 1) {
@@ -333,24 +373,31 @@
 
         var targetCardId = this.dataset.targetCard || "";
         var liveMessage = this.dataset.liveMessage || "";
-        moveToCard(targetCardId, liveMessage);
+
+        if (typeof onSelectProduct === "function") {
+          onSelectProduct(targetCardId, liveMessage);
+        }
       });
     }
   }
 
-    function initCard(card) {
+  function initCard(card, onStateChange) {
     var selectEls = card.querySelectorAll(".eva-select");
     var button = card.querySelector(".eva-cta");
     var liveRegion = card.querySelector(".eva-live");
+    var cardId = card.dataset.cardId || "";
     var productId = card.dataset.productId || "";
     var variations = [];
     var selectedVariation = null;
     var isCheckoutMode = false;
     var inFlight = false;
     var requestTimeout = Number(config.requestTimeout) || 12000;
+    var addToCartLabel = getMessage("addToCart", "Aggiungi al carrello");
+    var goCheckoutLabel = getMessage("goCheckout", "Vai al checkout");
+    var feedbackTone = "";
 
     if (!button || !productId || !selectEls.length) {
-      return;
+      return null;
     }
 
     try {
@@ -371,6 +418,13 @@
       }
 
       liveRegion.textContent = message || "";
+      feedbackTone = tone || "";
+    }
+
+    function notifyStateChange() {
+      if (typeof onStateChange === "function") {
+        onStateChange(cardId);
+      }
     }
 
     function collectSelectedAttributes() {
@@ -386,6 +440,39 @@
       }
 
       return attrs;
+    }
+
+    function getFieldDefinitions() {
+      var fields = [];
+
+      for (var i = 0; i < selectEls.length; i += 1) {
+        var el = selectEls[i];
+        var attributeKey = el.dataset.attributeKey || "";
+        if (!attributeKey) {
+          continue;
+        }
+
+        var describedById = el.getAttribute("aria-describedby") || "";
+        var noteEl = describedById ? document.getElementById(describedById) : null;
+        var labelText = el.dataset.attributeLabel || "";
+        var options = [];
+
+        for (var optionIndex = 0; optionIndex < el.options.length; optionIndex += 1) {
+          options.push({
+            value: el.options[optionIndex].value,
+            label: el.options[optionIndex].text,
+          });
+        }
+
+        fields.push({
+          key: attributeKey,
+          label: labelText,
+          note: noteEl ? noteEl.textContent : "",
+          options: options,
+        });
+      }
+
+      return fields;
     }
 
     function allSelected(attrs) {
@@ -426,6 +513,8 @@
       } else {
         updateAvailabilityMessage("");
       }
+
+      notifyStateChange();
     }
 
     function setLoadingState(active) {
@@ -435,21 +524,80 @@
         button.textContent = getMessage("adding", "Aggiunta in corso...");
         button.setAttribute("aria-busy", "true");
         setButtonState(button, false);
+        notifyStateChange();
         return;
       }
 
-      button.textContent = getMessage("addToCart", "Aggiungi al carrello");
+      button.textContent = addToCartLabel;
       button.removeAttribute("aria-busy");
       syncButton();
+      notifyStateChange();
     }
 
     function toCheckoutMode() {
       isCheckoutMode = true;
       button.classList.add("is-success");
-      button.textContent = getMessage("goCheckout", "Vai al checkout");
+      button.textContent = goCheckoutLabel;
       button.setAttribute("aria-label", button.textContent);
       button.removeAttribute("aria-busy");
       setButtonState(button, true);
+      notifyStateChange();
+    }
+
+    function resetState() {
+      if (inFlight) {
+        return;
+      }
+
+      isCheckoutMode = false;
+      selectedVariation = null;
+
+      for (var i = 0; i < selectEls.length; i += 1) {
+        selectEls[i].value = "";
+      }
+
+      button.classList.remove("is-success");
+      button.textContent = addToCartLabel;
+      button.setAttribute("aria-label", addToCartLabel);
+      button.removeAttribute("aria-busy");
+      updateAvailabilityMessage("");
+      syncButton();
+      notifyStateChange();
+    }
+
+    function setVisible(isVisible) {
+      card.hidden = !isVisible;
+      card.setAttribute("aria-hidden", isVisible ? "false" : "true");
+      card.classList.toggle("eva-card-targeted", isVisible);
+      notifyStateChange();
+    }
+
+    function setInfoMessage(message) {
+      if (!message) {
+        return;
+      }
+
+      updateAvailabilityMessage(message, "info");
+      notifyStateChange();
+    }
+
+    function setSelectedAttributes(attributes) {
+      var nextAttrs = attributes || {};
+
+      for (var i = 0; i < selectEls.length; i += 1) {
+        var el = selectEls[i];
+        var key = el.dataset.attributeKey || "";
+
+        if (!key) {
+          continue;
+        }
+
+        el.value = Object.prototype.hasOwnProperty.call(nextAttrs, key) ? String(nextAttrs[key]) : "";
+      }
+
+      updateAvailabilityMessage("");
+      syncButton();
+      notifyStateChange();
     }
 
     function addToCart() {
@@ -477,12 +625,7 @@
 
       fetchStoreApiSession()
         .then(function (session) {
-          var variation = Object.keys(attrs).map(function (attributeKey) {
-            return {
-              attribute: attributeKey,
-              value: toRequestAttributeValue(attrs[attributeKey]),
-            };
-          });
+          var variation = buildVariationRequest(attrs, selectedVariation);
 
           var headers = {
             Accept: "application/json",
@@ -512,6 +655,13 @@
             requestOptions.signal = controller.signal;
           }
 
+          debugLog("[EvaCoffeeBox] add-item payload", {
+            id: Number(productId),
+            quantity: 1,
+            variation: variation,
+            selectedVariation: selectedVariation,
+          });
+
           return fetch(getStoreApiAddItemUrl(), requestOptions);
         })
         .then(function (response) {
@@ -523,6 +673,11 @@
             };
 
             if (!response.ok) {
+              debugLog("[EvaCoffeeBox] add-item error", {
+                status: response.status,
+                data: data,
+              });
+
               if (data && data.message) {
                 throw { type: "store-api", message: data.message, status: response.status };
               }
@@ -578,7 +733,24 @@
           }
 
           syncButton();
+          notifyStateChange();
         });
+    }
+
+    function goToCheckout() {
+      var checkoutUrl = button.dataset.checkoutUrl || config.checkoutUrl || "";
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+      }
+    }
+
+    function triggerPrimaryAction() {
+      if (isCheckoutMode) {
+        goToCheckout();
+        return;
+      }
+
+      addToCart();
     }
 
     for (var i = 0; i < selectEls.length; i += 1) {
@@ -589,37 +761,425 @@
     }
 
     button.addEventListener("click", function () {
-      if (isCheckoutMode) {
-        var checkoutUrl = button.dataset.checkoutUrl || config.checkoutUrl || "";
-        if (checkoutUrl) {
-          window.location.href = checkoutUrl;
-        }
-        return;
-      }
-
-      addToCart();
+      triggerPrimaryAction();
     });
 
     syncButton();
+    notifyStateChange();
+
+    return {
+      cardId: cardId,
+      element: card,
+      resetState: resetState,
+      setVisible: setVisible,
+      setInfoMessage: setInfoMessage,
+      setSelectedAttributes: setSelectedAttributes,
+      getSelectedAttributes: collectSelectedAttributes,
+      getFieldDefinitions: getFieldDefinitions,
+      getProductName: function () {
+        var title = card.querySelector(".eva-card-title");
+        return title ? title.textContent : "";
+      },
+      getFeedbackState: function () {
+        return {
+          message: liveRegion ? liveRegion.textContent || "" : "",
+          tone: feedbackTone,
+        };
+      },
+      triggerPrimaryAction: triggerPrimaryAction,
+      getStickyState: function () {
+        return {
+          isCheckoutMode: isCheckoutMode,
+          isLoading: inFlight,
+          canAddToCart: !button.disabled,
+        };
+      },
+      focus: function () {
+        focusCardTarget(card);
+      },
+    };
   }
 
   function initLanding() {
     var cards = document.querySelectorAll(".eva-card[data-product-id]");
+    var landingRoot = document.querySelector(".eva-coffee-box");
+    var cardsWrap = document.querySelector(".eva-cards");
+    var configurePlaceholder = document.querySelector("[data-eva-config-placeholder]");
+    var changeBoxButton = document.querySelector("[data-eva-change-box]");
+    var chooseTitle = document.getElementById("eva-choose-title");
+    var stickyCtaWrap = document.querySelector("[data-eva-sticky-cta-wrap]");
+    var stickyStep2 = document.querySelector("[data-eva-sticky-step2]");
+    var stickyProduct = document.querySelector("[data-eva-sticky-product]");
+    var stickyFields = document.querySelector("[data-eva-sticky-fields]");
+    var stickyPrimaryButton = document.querySelector("[data-eva-sticky-primary]");
+    var stickyChangeButton = document.querySelector("[data-eva-sticky-change]");
+    var stickyLive = document.querySelector("[data-eva-sticky-live]");
+    var controllers = [];
+    var controllersById = {};
+    var activeCardId = "";
+    var stickyRenderedCardId = "";
+    var mobileQuery = typeof window.matchMedia === "function" ? window.matchMedia("(max-width: 699px)") : null;
+    var stickyHideTimeoutId = 0;
+
     handleAccordion();
-    handleComparisonCtas(cards);
 
     if (!cards.length) {
       return;
     }
 
-    for (var i = 0; i < cards.length; i += 1) {
-      initCard(cards[i]);
+    function isMobileViewport() {
+      return !!(mobileQuery && mobileQuery.matches);
     }
+
+    function readStickyFormValues() {
+      var attrs = {};
+      if (!stickyFields) {
+        return attrs;
+      }
+
+      var stickySelects = stickyFields.querySelectorAll(".eva-sticky-step2__select[data-attribute-key]");
+      for (var i = 0; i < stickySelects.length; i += 1) {
+        var key = stickySelects[i].dataset.attributeKey || "";
+        if (!key) {
+          continue;
+        }
+
+        attrs[key] = stickySelects[i].value;
+      }
+
+      return attrs;
+    }
+
+    function renderStickyFields(controller) {
+      if (!stickyFields || !controller) {
+        return;
+      }
+
+      var fields = controller.getFieldDefinitions();
+      var selectedAttrs = controller.getSelectedAttributes();
+
+      stickyFields.innerHTML = "";
+
+      for (var i = 0; i < fields.length; i += 1) {
+        var field = fields[i];
+        var fieldWrap = document.createElement("div");
+        fieldWrap.className = "eva-sticky-step2__field";
+
+        var label = document.createElement("label");
+        label.className = "eva-sticky-step2__label";
+        label.textContent = field.label;
+
+        var select = document.createElement("select");
+        select.className = "eva-sticky-step2__select";
+        select.dataset.attributeKey = field.key;
+
+        for (var optionIndex = 0; optionIndex < field.options.length; optionIndex += 1) {
+          var optionData = field.options[optionIndex];
+          var option = document.createElement("option");
+          option.value = optionData.value;
+          option.textContent = optionData.label;
+          select.appendChild(option);
+        }
+
+        select.value = Object.prototype.hasOwnProperty.call(selectedAttrs, field.key) ? selectedAttrs[field.key] : "";
+
+        select.addEventListener("change", function () {
+          var activeController = activeCardId ? controllersById[activeCardId] : null;
+          if (!activeController) {
+            return;
+          }
+
+          activeController.setSelectedAttributes(readStickyFormValues());
+          updateStickyCta();
+        });
+
+        fieldWrap.appendChild(label);
+
+        if (field.note) {
+          var note = document.createElement("p");
+          note.className = "eva-sticky-step2__note";
+          note.textContent = field.note;
+          fieldWrap.appendChild(note);
+        }
+
+        fieldWrap.appendChild(select);
+        stickyFields.appendChild(fieldWrap);
+      }
+    }
+
+    function setMobileStep2Mode(active) {
+      if (!landingRoot || !cardsWrap) {
+        return;
+      }
+
+      var enabled = Boolean(active && isMobileViewport());
+      landingRoot.classList.toggle("eva-mobile-step2-active", enabled);
+      cardsWrap.setAttribute("aria-hidden", enabled ? "true" : "false");
+    }
+
+    function showStickyStep2() {
+      if (!stickyCtaWrap) {
+        return;
+      }
+
+      if (stickyHideTimeoutId) {
+        window.clearTimeout(stickyHideTimeoutId);
+        stickyHideTimeoutId = 0;
+      }
+
+      if (stickyCtaWrap.hidden) {
+        stickyCtaWrap.hidden = false;
+      }
+
+      if (stickyCtaWrap.classList.contains("is-visible")) {
+        return;
+      }
+
+      window.requestAnimationFrame(function () {
+        stickyCtaWrap.classList.add("is-visible");
+      });
+    }
+
+    function hideStickyStep2() {
+      if (!stickyCtaWrap) {
+        return;
+      }
+
+      stickyCtaWrap.classList.remove("is-visible");
+
+      if (stickyHideTimeoutId) {
+        window.clearTimeout(stickyHideTimeoutId);
+      }
+
+      stickyHideTimeoutId = window.setTimeout(function () {
+        if (!stickyCtaWrap.classList.contains("is-visible")) {
+          stickyCtaWrap.hidden = true;
+        }
+      }, 280);
+    }
+
+    function updateStickyCta() {
+      if (!stickyCtaWrap || !stickyStep2 || !stickyPrimaryButton || !stickyChangeButton) {
+        return;
+      }
+
+      var activeController = activeCardId && controllersById[activeCardId] ? controllersById[activeCardId] : null;
+      var activeCard = activeController ? activeController.getStickyState() : null;
+      var stickyState = resolveStickyCtaState({
+        activeCardId: activeCardId,
+        activeCard: activeCard,
+        chooseLabel: getMessage("chooseBox", "Scegli il box"),
+        addToCartLabel: getMessage("addToCart", "Aggiungi al carrello"),
+        checkoutLabel: getMessage("goCheckout", "Vai al checkout"),
+        loadingLabel: getMessage("adding", "Aggiunta in corso..."),
+      });
+
+      stickyCtaWrap.dataset.stickyAction = stickyState.action;
+
+      if (stickyState.action === "choose") {
+        hideStickyStep2();
+        stickyStep2.hidden = true;
+        stickyRenderedCardId = "";
+        setMobileStep2Mode(false);
+        return;
+      }
+
+      showStickyStep2();
+      stickyStep2.hidden = false;
+      setMobileStep2Mode(true);
+
+      if (activeController && stickyProduct) {
+        stickyProduct.textContent = activeController.getProductName();
+      }
+
+      if (activeController && stickyRenderedCardId !== activeCardId) {
+        renderStickyFields(activeController);
+        stickyRenderedCardId = activeCardId;
+      }
+
+      stickyPrimaryButton.textContent = stickyState.label;
+      stickyPrimaryButton.disabled = Boolean(stickyState.disabled);
+      stickyPrimaryButton.setAttribute("aria-label", stickyState.label);
+
+      if (stickyFields && activeCard) {
+        var selects = stickyFields.querySelectorAll(".eva-sticky-step2__select");
+        for (var s = 0; s < selects.length; s += 1) {
+          selects[s].disabled = Boolean(activeCard.isCheckoutMode || activeCard.isLoading);
+        }
+      }
+
+      if (stickyLive && activeController) {
+        var feedback = activeController.getFeedbackState();
+        stickyLive.className = "eva-sticky-step2__live";
+        if (feedback.tone) {
+          stickyLive.classList.add("is-" + feedback.tone);
+        }
+        stickyLive.textContent = feedback.message || "";
+      }
+    }
+
+    for (var i = 0; i < cards.length; i += 1) {
+      var controller = initCard(cards[i], updateStickyCta);
+      if (!controller || !controller.cardId) {
+        continue;
+      }
+
+      controllers.push(controller);
+      controllersById[controller.cardId] = controller;
+    }
+
+    function setIdleState() {
+      activeCardId = "";
+
+      for (var i = 0; i < controllers.length; i += 1) {
+        controllers[i].resetState();
+        controllers[i].setVisible(false);
+      }
+
+      if (configurePlaceholder) {
+        configurePlaceholder.hidden = false;
+      }
+
+      if (changeBoxButton) {
+        changeBoxButton.hidden = true;
+      }
+
+      stickyRenderedCardId = "";
+
+      updateStickyCta();
+    }
+
+    function activateCard(targetCardId, liveMessage) {
+      var controller = controllersById[targetCardId];
+      if (!controller) {
+        return;
+      }
+
+      primeStoreApiSession();
+
+      activeCardId = targetCardId;
+
+      for (var i = 0; i < controllers.length; i += 1) {
+        var candidate = controllers[i];
+        var isTarget = candidate.cardId === targetCardId;
+
+        candidate.resetState();
+        candidate.setVisible(isTarget);
+      }
+
+      if (configurePlaceholder) {
+        configurePlaceholder.hidden = true;
+      }
+
+      if (changeBoxButton) {
+        changeBoxButton.hidden = false;
+      }
+
+      var reduceMotion =
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      controller.element.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      });
+
+      controller.focus();
+      controller.setInfoMessage(liveMessage);
+      updateStickyCta();
+    }
+
+    handleComparisonCtas(function (targetCardId, liveMessage) {
+      activateCard(targetCardId, liveMessage);
+    });
+
+    if (changeBoxButton) {
+      changeBoxButton.addEventListener("click", function () {
+        if (!activeCardId) {
+          return;
+        }
+
+        setIdleState();
+
+        var reduceMotion =
+          typeof window.matchMedia === "function" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        if (chooseTitle) {
+          chooseTitle.scrollIntoView({
+            behavior: reduceMotion ? "auto" : "smooth",
+            block: "start",
+          });
+
+          chooseTitle.setAttribute("tabindex", "-1");
+          try {
+            chooseTitle.focus({ preventScroll: true });
+          } catch (error) {
+            chooseTitle.focus();
+          }
+        }
+
+        updateStickyCta();
+      });
+    }
+
+    if (stickyChangeButton) {
+      stickyChangeButton.addEventListener("click", function () {
+        if (!activeCardId) {
+          return;
+        }
+
+        setIdleState();
+
+        var reduceMotion =
+          typeof window.matchMedia === "function" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        if (chooseTitle) {
+          chooseTitle.scrollIntoView({
+            behavior: reduceMotion ? "auto" : "smooth",
+            block: "start",
+          });
+
+          chooseTitle.setAttribute("tabindex", "-1");
+          try {
+            chooseTitle.focus({ preventScroll: true });
+          } catch (error) {
+            chooseTitle.focus();
+          }
+        }
+      });
+    }
+
+    if (stickyPrimaryButton) {
+      stickyPrimaryButton.addEventListener("click", function () {
+        var activeController = activeCardId ? controllersById[activeCardId] : null;
+
+        if (activeController) {
+          activeController.triggerPrimaryAction();
+          updateStickyCta();
+        }
+      });
+    }
+
+    if (mobileQuery && typeof mobileQuery.addEventListener === "function") {
+      mobileQuery.addEventListener("change", function () {
+        updateStickyCta();
+      });
+    }
+
+    setIdleState();
   }
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initLanding);
   } else {
     initLanding();
+  }
+
+  if (window) {
+    window.EvaCoffeeBoxTestUtils = window.EvaCoffeeBoxTestUtils || {};
+    window.EvaCoffeeBoxTestUtils.buildVariationRequest = buildVariationRequest;
+    window.EvaCoffeeBoxTestUtils.resolveStickyCtaState = resolveStickyCtaState;
   }
 })();

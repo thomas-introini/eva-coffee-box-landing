@@ -213,6 +213,14 @@ Typical workflow:
 ./test-store-add-item.sh https://evacaffe.it YOUR_NONCE YOUR_CART_TOKEN
 ```
 
+## Automated regression tests
+
+Run Node regression tests for JS variation payload mapping and sticky CTA state logic:
+
+```bash
+node --test tests/eva-coffee-box.test.js
+```
+
 ## Notes on performance and accessibility
 
 - Template-specific enqueue only (`is_page_template`)

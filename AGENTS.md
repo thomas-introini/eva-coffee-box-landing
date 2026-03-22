@@ -39,6 +39,9 @@ php -l wp-content/themes/kaffen-child/page-templates/landing-coffee-box.php
 ### JavaScript
 
 ```bash
+# Node.js regression tests
+node --test tests/eva-coffee-box.test.js
+
 # ESLint (if configured)
 npx eslint wp-content/themes/kaffen-child/assets/js/eva-coffee-box.js
 
@@ -229,4 +232,5 @@ Repository utilities:
 sync.sh                            # Rsync only landing template/CSS/JS
 test-store-cart.sh                 # Test Woo Store API cart endpoint
 test-store-add-item.sh             # Test Woo Store API add-item endpoint
+tests/eva-coffee-box.test.js       # Node regression tests for variation/sticky CTA state logic
 ```

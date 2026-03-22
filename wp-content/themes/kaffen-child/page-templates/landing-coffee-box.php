@@ -321,6 +321,10 @@ get_header();
 			</div>
 
 			<h2 class="eva-configure-title"><?php esc_html_e( '2. Imposta macinatura e acquista', 'kaffen-child' ); ?></h2>
+			<div class="eva-configure-status" data-eva-configure-status>
+				<p class="eva-configure-placeholder" data-eva-config-placeholder><?php esc_html_e( 'Seleziona prima il box', 'kaffen-child' ); ?></p>
+				<button type="button" class="eva-change-box" data-eva-change-box hidden><?php esc_html_e( 'Cambia box', 'kaffen-child' ); ?></button>
+			</div>
 			<div class="eva-cards">
 				<?php
 				foreach ( $cards as $item ) :
@@ -443,6 +447,20 @@ get_header();
 			</div>
 		</div>
 	</section>
+
+	<div class="eva-sticky-cta" data-eva-sticky-cta-wrap hidden>
+		<div class="eva-wrap eva-sticky-cta__inner">
+			<div class="eva-sticky-step2" data-eva-sticky-step2 hidden>
+				<p class="eva-sticky-step2__title" data-eva-sticky-product></p>
+				<div class="eva-sticky-step2__fields" data-eva-sticky-fields></div>
+				<div class="eva-sticky-step2__actions">
+					<button type="button" class="eva-sticky-cta__button" data-eva-sticky-primary><?php esc_html_e( 'Aggiungi al carrello', 'kaffen-child' ); ?></button>
+					<button type="button" class="eva-sticky-step2__change" data-eva-sticky-change><?php esc_html_e( 'Cambia box', 'kaffen-child' ); ?></button>
+				</div>
+				<p class="eva-sticky-step2__live" data-eva-sticky-live aria-live="polite" aria-atomic="true"></p>
+			</div>
+		</div>
+	</div>
 </main>
 
 <?php
