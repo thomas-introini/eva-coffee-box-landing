@@ -13,13 +13,13 @@ Production-ready custom landing page template for a WooCommerce store inside `ka
 ## What this landing does
 
 - Dedicated page template: `Template Name: Coffee Box Landing`
-- Renders 2 WooCommerce variable products (BOX_FULL and BOX_STARTER)
-- Dynamically discovers variation attribute keys/options from product variation data
-- Shows 2 required grind selects per product:
-  - `Macinatura Caffè Moka/Espresso`
-  - `Macinatura Caffè Filtro`
-- Matches the correct `variation_id` from both selected values
-- Adds the specific variation to cart via WooCommerce `wc-ajax=add_to_cart`
+- Renders 2 WooCommerce variable products from server-local IDs (`EVA_BOX_FULL_ID`, `EVA_BOX_STARTER_ID`)
+- Dynamically discovers variation attribute keys/options from Woo product data and available variations
+- Supports per-product grind requirements:
+  - `Discovery Boss Mode`: `Macinatura Caffè Moka/Espresso` + `Macinatura Caffè Filtro`
+  - `Discovery Level Up`: `Macinatura Caffè Moka/Espresso`
+- Matches the correct purchasable variation, including Woo wildcard/"any" variations
+- Adds items to cart via Woo Store API cart endpoints (`/wp-json/wc/store/v1/cart` and `/add-item`)
 - On success:
   - Announces `Aggiunto ✓` with `aria-live`
   - CTA turns into `Vai al checkout`
@@ -131,7 +131,6 @@ function kaffen_child_enqueue_coffee_box_assets() {
 		'eva-coffee-box',
 		'EvaCoffeeBoxConfig',
 		array(
-			'ajaxUrl'        => WC_AJAX::get_endpoint( 'add_to_cart' ),
 			'checkoutUrl'    => $checkout_url,
 			'requestTimeout' => 12000,
 			'i18n'           => array(
@@ -173,11 +172,51 @@ Required variation attributes by product:
 - `Discovery Level Up`
   - `Macinatura Caffè Moka/Espresso`
 
+Notes:
+
+- `Discovery Level Up` can use a single purchasable wildcard variation (`Any Macinatura...`) as long as Woo marks it purchasable and in stock.
+- Attribute names may be custom product attributes; the landing resolves the actual variation keys from Woo variation payloads.
+
 If IDs are `0`, product is missing, product is not variable, or attributes are missing, an admin-only warning is shown on the landing.
+
+## Sync / deployment
+
+- `sync.sh` uploads only:
+  - `wp-content/themes/kaffen-child/page-templates/landing-coffee-box.php`
+  - `wp-content/themes/kaffen-child/assets/css/eva-coffee-box.css`
+  - `wp-content/themes/kaffen-child/assets/js/eva-coffee-box.js`
+- It intentionally does **not** upload `functions.php` or `eva-coffee-box.local.php`
+
+Example:
+
+```bash
+./sync.sh user@example.com /var/www/html/wp-content/themes/kaffen-child
+```
+
+Dry run:
+
+```bash
+DRY_RUN=1 ./sync.sh user@example.com /var/www/html/wp-content/themes/kaffen-child
+```
+
+## Store API debugging
+
+Helper scripts included:
+
+- `test-store-cart.sh` -> tests `GET /wp-json/wc/store/v1/cart`
+- `test-store-add-item.sh` -> tests `POST /wp-json/wc/store/v1/cart/add-item`
+
+Typical workflow:
+
+```bash
+./test-store-cart.sh https://evacaffe.it
+./test-store-add-item.sh https://evacaffe.it YOUR_NONCE YOUR_CART_TOKEN
+```
 
 ## Notes on performance and accessibility
 
 - Template-specific enqueue only (`is_page_template`)
 - No Elementor, no jQuery, no external libraries
 - Lightweight CSS, minimal JS, lazy-loaded product images
+- Store API session is primed only after the first product-selection click, not on initial page load
 - Keyboard and screen-reader friendly accordion and status messages

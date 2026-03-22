@@ -8,6 +8,15 @@ This is a WordPress/WooCommerce child theme (`kaffen-child`) containing a custom
 - **JavaScript**: Vanilla JS (no frameworks, no jQuery)
 - **CSS**: Custom responsive styles
 
+Current landing behavior:
+
+- Comparison-first coffee box landing with 2-step flow:
+  1. choose box
+  2. set grind and add to cart
+- Uses WooCommerce product data from the page template
+- Uses Woo Store API cart endpoints from frontend JS for add-to-cart
+- Product IDs are loaded from a server-local file, not hardcoded in the template
+
 ## Design Context Source
 
 - Persistent UX/brand guidance is stored in `.impeccable.md` at the project root.
@@ -22,7 +31,6 @@ This project uses static files - no build step required. Assets are enqueued wit
 ```bash
 # PHP syntax check
 php -l wp-content/themes/kaffen-child/page-templates/landing-coffee-box.php
-php -l wp-content/themes/kaffen-child/functions.php
 
 # WordPress Coding Standards (if installed)
 # phpcs --standard=WordPress wp-content/themes/kaffen-child/
@@ -60,7 +68,7 @@ npx prettier --write wp-content/themes/kaffen-child/assets/css/eva-coffee-box.cs
 
 #### Naming Conventions
 - Functions: `snake_case` (e.g., `eva_coffee_box_build_card_data`)
-- Constants: `UPPER_SNAKE_CASE` (e.g., `BOX_FULL_ID`)
+- Constants: `UPPER_SNAKE_CASE` (e.g., `EVA_BOX_FULL_ID`)
 - Classes: `PascalCase` (not used in this project)
 - Variables: `snake_case` (e.g., `$product_id`)
 
@@ -73,11 +81,12 @@ npx prettier --write wp-content/themes/kaffen-child/assets/css/eva-coffee-box.cs
 /**
  * Build landing card context from product ID.
  *
- * @param int    $product_id   Product ID.
- * @param string $shipping_note Shipping note.
+ * @param int      $product_id Product ID.
+ * @param string   $shipping_note Shipping note.
+ * @param string[] $required_labels Required variation labels.
  * @return array
  */
-function eva_coffee_box_build_card_data( $product_id, $shipping_note ) {
+function eva_coffee_box_build_card_data( $product_id, $shipping_note, $required_labels = array() ) {
     // Early return for invalid input
     if ( 0 === (int) $product_id ) {
         $card['issues'][] = __( 'Error message', 'kaffen-child' );
@@ -127,6 +136,7 @@ $filtered   = sanitize_text_field( $input );
 - Always wrap JSON parsing in try/catch
 - Handle missing DOM elements gracefully
 - Provide fallback strings for i18n
+- Prefer Woo Store API cart endpoints over legacy `wc-ajax=add_to_cart` for this landing
 
 ```javascript
 // Good: JSON parsing with try/catch
@@ -196,6 +206,8 @@ if (!button || !productId) {
 3. **Performance**: Lazy-load images, minimize DOM manipulation, use CSS over JS where possible
 4. **i18n Ready**: Use WordPress translation functions (`__()`, `_e()`) for all user-facing strings
 5. **Prefix Everything**: All functions, classes, hooks, and CSS classes should be prefixed (`eva_`, `kaffen_child_`, `eva-`)
+6. **Do Not Ship `functions.php`**: keep enqueue/config snippet in docs; do not overwrite a live child theme's existing `functions.php`
+7. **Keep Product IDs Server-Local**: use `wp-content/themes/kaffen-child/eva-coffee-box.local.php` with `EVA_BOX_STARTER_ID` and `EVA_BOX_FULL_ID`
 
 ### File Structure
 
@@ -208,5 +220,13 @@ wp-content/themes/kaffen-child/
 │   │   └── eva-coffee-box.css
 │   └── js/
 │       └── eva-coffee-box.js
-└── functions.php                  # Enqueue and helper functions
+└── eva-coffee-box.local.php       # Server-local product IDs (not committed)
+```
+
+Repository utilities:
+
+```
+sync.sh                            # Rsync only landing template/CSS/JS
+test-store-cart.sh                 # Test Woo Store API cart endpoint
+test-store-add-item.sh             # Test Woo Store API add-item endpoint
 ```
