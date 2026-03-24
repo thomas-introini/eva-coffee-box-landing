@@ -170,3 +170,109 @@ test("resolveStickyCtaState returns expected labels and actions by journey stage
     }
   );
 });
+
+test("getViewportBottomOffset computes visual viewport delta for iOS sticky alignment", () => {
+  const utils = loadCoffeeBoxScript();
+
+  assert.equal(typeof utils.getViewportBottomOffset, "function");
+
+  assert.equal(utils.getViewportBottomOffset(812, null), 0);
+
+  assert.equal(
+    utils.getViewportBottomOffset(812, {
+      height: 700,
+      offsetTop: 0,
+    }),
+    112
+  );
+
+  assert.equal(
+    utils.getViewportBottomOffset(
+      812,
+      {
+        height: 700,
+        offsetTop: 0,
+      },
+      {
+        safeAreaInsetBottom: 34,
+      }
+    ),
+    78
+  );
+
+  assert.equal(
+    utils.getViewportBottomOffset(812, {
+      height: 700.4,
+      offsetTop: 0.2,
+    }),
+    111
+  );
+
+  assert.equal(
+    utils.getViewportBottomOffset(700, {
+      height: 760,
+      offsetTop: 0,
+    }),
+    0
+  );
+
+  assert.equal(
+    utils.getViewportBottomOffset(
+      812,
+      {
+        height: 700,
+        offsetTop: 0,
+      },
+      {
+        scrollY: 0,
+      }
+    ),
+    0
+  );
+});
+
+test("resolvePrimaryButtonEnabled keeps checkout actionable after add success", () => {
+  const utils = loadCoffeeBoxScript();
+
+  assert.equal(typeof utils.resolvePrimaryButtonEnabled, "function");
+
+  assert.equal(
+    utils.resolvePrimaryButtonEnabled({
+      isCheckoutMode: true,
+      inFlight: true,
+      hasValidVariation: true,
+    }),
+    true
+  );
+
+  assert.equal(
+    utils.resolvePrimaryButtonEnabled({
+      isCheckoutMode: false,
+      inFlight: true,
+      hasValidVariation: true,
+    }),
+    false
+  );
+});
+
+test("resolvePostAddUiMode switches from config to success in checkout mode", () => {
+  const utils = loadCoffeeBoxScript();
+
+  assert.equal(typeof utils.resolvePostAddUiMode, "function");
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(utils.resolvePostAddUiMode("add"))),
+    {
+      showConfiguration: true,
+      showSuccess: false,
+    }
+  );
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(utils.resolvePostAddUiMode("checkout"))),
+    {
+      showConfiguration: false,
+      showSuccess: true,
+    }
+  );
+});

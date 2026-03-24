@@ -360,6 +360,41 @@
   margin-top: 0.8rem;
 }
 
+.eva-add-success {
+  margin-top: 0.45rem;
+  padding: 0.9rem 0.8rem;
+  border: 1px solid rgba(76, 138, 85, 0.34);
+  border-radius: 0.9rem;
+  background: rgba(236, 250, 238, 0.9);
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.eva-add-success__icon {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  background: #2f8b43;
+  color: #f4fff3;
+}
+
+.eva-add-success__text {
+  margin: 0;
+  font-size: 0.96rem;
+  color: #1e5e2a;
+  font-weight: 600;
+}
+
+.eva-variation-form.is-post-add-success .eva-cta-group {
+  margin-top: 0.65rem;
+}
+
 .eva-cta {
   width: 100%;
   border: 1px solid var(--brand-color);
@@ -515,19 +550,35 @@
     padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
   }
 
+  .eva-card-media {
+    width: min(100%, 20rem);
+    margin-inline: auto;
+    background: transparent;
+  }
+
+  .eva-product-image {
+    aspect-ratio: auto;
+    height: auto;
+    object-fit: contain;
+    object-position: center;
+    background: transparent;
+  }
+
   .eva-wrap {
     width: min(1160px, calc(100% - 1.5rem));
   }
 
   .eva-sticky-cta {
+    --eva-safe-area-bottom: env(safe-area-inset-bottom, 0px);
     display: block;
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: calc(var(--eva-ios-bottom-offset, 0px) * -1);
     z-index: 30;
-    padding: 0.65rem 0 calc(0.65rem + env(safe-area-inset-bottom, 0px));
-    background: linear-gradient(180deg, rgba(252, 246, 236, 0.92), rgba(249, 238, 223, 0.98));
+    padding: 0.65rem 0 calc(0.65rem + var(--eva-safe-area-bottom));
+    background: linear-gradient(180deg, #fcf6ec, #f7ecdd);
+    background-color: #f7ecdd;
     border-top: 1px solid rgba(128, 88, 51, 0.22);
     box-shadow: 0 -8px 26px rgba(53, 36, 25, 0.12);
     backdrop-filter: blur(10px);
@@ -595,6 +646,37 @@
   .eva-sticky-step2__actions {
     display: grid;
     gap: 0.4rem;
+  }
+
+  .eva-sticky-success {
+    margin: 0.1rem 0 0.2rem;
+    padding: 0.75rem 0.7rem;
+    border: 1px solid rgba(76, 138, 85, 0.34);
+    border-radius: 0.9rem;
+    background: rgba(236, 250, 238, 0.9);
+    display: grid;
+    justify-items: center;
+    gap: 0.3rem;
+    text-align: center;
+  }
+
+  .eva-sticky-success__icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+    background: #2f8b43;
+    color: #f4fff3;
+  }
+
+  .eva-sticky-success__text {
+    margin: 0;
+    font-size: 0.86rem;
+    color: #1e5e2a;
+    font-weight: 600;
   }
 
   .eva-sticky-step2__change {

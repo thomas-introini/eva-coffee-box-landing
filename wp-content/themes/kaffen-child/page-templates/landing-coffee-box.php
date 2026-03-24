@@ -378,6 +378,11 @@ get_header();
 									</div>
 								<?php endif; ?>
 
+								<div class="eva-add-success" data-eva-add-success hidden>
+									<span class="eva-add-success__icon" aria-hidden="true">&#10003;</span>
+									<p class="eva-add-success__text"><?php esc_html_e( 'Prodotto aggiunto al carrello', 'kaffen-child' ); ?></p>
+								</div>
+
 								<div class="eva-cta-group">
 									<button type="button" class="eva-cta" data-checkout-url="<?php echo esc_url( eva_coffee_box_preserve_query_args( wc_get_checkout_url() ) ); ?>" disabled>
 										<?php esc_html_e( 'Aggiungi al carrello', 'kaffen-child' ); ?>
@@ -453,6 +458,10 @@ get_header();
 			<div class="eva-sticky-step2" data-eva-sticky-step2 hidden>
 				<p class="eva-sticky-step2__title" data-eva-sticky-product></p>
 				<div class="eva-sticky-step2__fields" data-eva-sticky-fields></div>
+				<div class="eva-sticky-success" data-eva-sticky-success hidden>
+					<span class="eva-sticky-success__icon" aria-hidden="true">&#10003;</span>
+					<p class="eva-sticky-success__text"><?php esc_html_e( 'Prodotto aggiunto al carrello', 'kaffen-child' ); ?></p>
+				</div>
 				<div class="eva-sticky-step2__actions">
 					<button type="button" class="eva-sticky-cta__button" data-eva-sticky-primary><?php esc_html_e( 'Aggiungi al carrello', 'kaffen-child' ); ?></button>
 					<button type="button" class="eva-sticky-step2__change" data-eva-sticky-change><?php esc_html_e( 'Cambia box', 'kaffen-child' ); ?></button>

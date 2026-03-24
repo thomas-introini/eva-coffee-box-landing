@@ -137,6 +137,77 @@
     };
   }
 
+  function resolvePrimaryButtonEnabled(input) {
+    var state = input || {};
+
+    if (state.isCheckoutMode) {
+      return true;
+    }
+
+    if (state.inFlight) {
+      return false;
+    }
+
+    return Boolean(state.hasValidVariation);
+  }
+
+  function resolvePostAddUiMode(action) {
+    if (action === "checkout") {
+      return {
+        showConfiguration: false,
+        showSuccess: true,
+      };
+    }
+
+    return {
+      showConfiguration: true,
+      showSuccess: false,
+    };
+  }
+
+  function getViewportBottomOffset(innerHeight, visualViewport, options) {
+    var context = options || {};
+    var scrollY = typeof context.scrollY === "number" ? context.scrollY : null;
+    var safeAreaInsetBottom =
+      typeof context.safeAreaInsetBottom === "number" && Number.isFinite(context.safeAreaInsetBottom)
+        ? context.safeAreaInsetBottom
+        : 0;
+
+    if (scrollY !== null && scrollY <= 0) {
+      return 0;
+    }
+
+    if (!visualViewport || typeof innerHeight !== "number" || !Number.isFinite(innerHeight)) {
+      return 0;
+    }
+
+    var height = typeof visualViewport.height === "number" ? visualViewport.height : innerHeight;
+    var offsetTop = typeof visualViewport.offsetTop === "number" ? visualViewport.offsetTop : 0;
+    var delta = innerHeight - (height + offsetTop);
+
+    if (!Number.isFinite(delta) || delta <= 0) {
+      return 0;
+    }
+
+    return Math.max(0, Math.round(delta - safeAreaInsetBottom));
+  }
+
+  function readSafeAreaInsetBottom(element) {
+    if (!element || !window || typeof window.getComputedStyle !== "function") {
+      return 0;
+    }
+
+    var styles = window.getComputedStyle(element);
+    var raw = styles.getPropertyValue("--eva-safe-area-bottom") || "0";
+    var parsed = Number.parseFloat(raw);
+
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return 0;
+    }
+
+    return parsed;
+  }
+
   function parseJsonSafely(raw) {
     if (!raw) {
       return null;
@@ -382,9 +453,12 @@
   }
 
   function initCard(card, onStateChange) {
+    var form = card.querySelector(".eva-variation-form");
     var selectEls = card.querySelectorAll(".eva-select");
+    var fieldEls = card.querySelectorAll(".eva-field");
     var button = card.querySelector(".eva-cta");
     var liveRegion = card.querySelector(".eva-live");
+    var addSuccessPanel = card.querySelector("[data-eva-add-success]");
     var cardId = card.dataset.cardId || "";
     var productId = card.dataset.productId || "";
     var variations = [];
@@ -424,6 +498,28 @@
     function notifyStateChange() {
       if (typeof onStateChange === "function") {
         onStateChange(cardId);
+      }
+    }
+
+    function syncPostAddUi() {
+      var mode = resolvePostAddUiMode(isCheckoutMode ? "checkout" : "add");
+
+      if (fieldEls && fieldEls.length) {
+        for (var i = 0; i < fieldEls.length; i += 1) {
+          fieldEls[i].hidden = !mode.showConfiguration;
+        }
+      }
+
+      if (addSuccessPanel) {
+        addSuccessPanel.hidden = !mode.showSuccess;
+      }
+
+      if (liveRegion) {
+        liveRegion.hidden = mode.showSuccess;
+      }
+
+      if (form) {
+        form.classList.toggle("is-post-add-success", mode.showSuccess);
       }
     }
 
@@ -486,13 +582,15 @@
     }
 
     function syncButton() {
-      if (inFlight) {
-        setButtonState(button, false);
-        return;
-      }
-
       if (isCheckoutMode) {
-        setButtonState(button, true);
+        setButtonState(
+          button,
+          resolvePrimaryButtonEnabled({
+            isCheckoutMode: true,
+            inFlight: inFlight,
+            hasValidVariation: true,
+          })
+        );
         return;
       }
 
@@ -500,13 +598,27 @@
 
       if (!allSelected(attrs)) {
         selectedVariation = null;
-        setButtonState(button, false);
+        setButtonState(
+          button,
+          resolvePrimaryButtonEnabled({
+            isCheckoutMode: isCheckoutMode,
+            inFlight: inFlight,
+            hasValidVariation: false,
+          })
+        );
         updateAvailabilityMessage("");
         return;
       }
 
       selectedVariation = matchVariation(variations, attrs);
-      setButtonState(button, Boolean(selectedVariation));
+      setButtonState(
+        button,
+        resolvePrimaryButtonEnabled({
+          isCheckoutMode: isCheckoutMode,
+          inFlight: inFlight,
+          hasValidVariation: Boolean(selectedVariation),
+        })
+      );
 
       if (!selectedVariation) {
         updateAvailabilityMessage(getMessage("selectPrompt", "Selezione non valida"), "error");
@@ -541,6 +653,7 @@
       button.setAttribute("aria-label", button.textContent);
       button.removeAttribute("aria-busy");
       setButtonState(button, true);
+      syncPostAddUi();
       notifyStateChange();
     }
 
@@ -561,6 +674,7 @@
       button.setAttribute("aria-label", addToCartLabel);
       button.removeAttribute("aria-busy");
       updateAvailabilityMessage("");
+      syncPostAddUi();
       syncButton();
       notifyStateChange();
     }
@@ -765,6 +879,7 @@
     });
 
     syncButton();
+    syncPostAddUi();
     notifyStateChange();
 
     return {
@@ -811,6 +926,7 @@
     var stickyStep2 = document.querySelector("[data-eva-sticky-step2]");
     var stickyProduct = document.querySelector("[data-eva-sticky-product]");
     var stickyFields = document.querySelector("[data-eva-sticky-fields]");
+    var stickySuccess = document.querySelector("[data-eva-sticky-success]");
     var stickyPrimaryButton = document.querySelector("[data-eva-sticky-primary]");
     var stickyChangeButton = document.querySelector("[data-eva-sticky-change]");
     var stickyLive = document.querySelector("[data-eva-sticky-live]");
@@ -922,6 +1038,8 @@
         return;
       }
 
+      updateStickyViewportOffset();
+
       if (stickyHideTimeoutId) {
         window.clearTimeout(stickyHideTimeoutId);
         stickyHideTimeoutId = 0;
@@ -958,6 +1076,18 @@
       }, 280);
     }
 
+    function updateStickyViewportOffset() {
+      if (!stickyCtaWrap) {
+        return;
+      }
+
+      var offset = getViewportBottomOffset(window.innerHeight, window.visualViewport || null, {
+        scrollY: window.scrollY,
+        safeAreaInsetBottom: readSafeAreaInsetBottom(stickyCtaWrap),
+      });
+      stickyCtaWrap.style.setProperty("--eva-ios-bottom-offset", offset + "px");
+    }
+
     function updateStickyCta() {
       if (!stickyCtaWrap || !stickyStep2 || !stickyPrimaryButton || !stickyChangeButton) {
         return;
@@ -973,6 +1103,7 @@
         checkoutLabel: getMessage("goCheckout", "Vai al checkout"),
         loadingLabel: getMessage("adding", "Aggiunta in corso..."),
       });
+      var stickyMode = resolvePostAddUiMode(stickyState.action);
 
       stickyCtaWrap.dataset.stickyAction = stickyState.action;
 
@@ -988,11 +1119,31 @@
       stickyStep2.hidden = false;
       setMobileStep2Mode(true);
 
+      if (stickyProduct) {
+        stickyProduct.hidden = !stickyMode.showConfiguration;
+      }
+
+      if (stickyFields) {
+        stickyFields.hidden = !stickyMode.showConfiguration;
+      }
+
+      if (stickyChangeButton) {
+        stickyChangeButton.hidden = !stickyMode.showConfiguration;
+      }
+
+      if (stickyLive) {
+        stickyLive.hidden = stickyMode.showSuccess;
+      }
+
+      if (stickySuccess) {
+        stickySuccess.hidden = !stickyMode.showSuccess;
+      }
+
       if (activeController && stickyProduct) {
         stickyProduct.textContent = activeController.getProductName();
       }
 
-      if (activeController && stickyRenderedCardId !== activeCardId) {
+      if (stickyMode.showConfiguration && activeController && stickyRenderedCardId !== activeCardId) {
         renderStickyFields(activeController);
         stickyRenderedCardId = activeCardId;
       }
@@ -1001,7 +1152,7 @@
       stickyPrimaryButton.disabled = Boolean(stickyState.disabled);
       stickyPrimaryButton.setAttribute("aria-label", stickyState.label);
 
-      if (stickyFields && activeCard) {
+      if (stickyMode.showConfiguration && stickyFields && activeCard) {
         var selects = stickyFields.querySelectorAll(".eva-sticky-step2__select");
         for (var s = 0; s < selects.length; s += 1) {
           selects[s].disabled = Boolean(activeCard.isCheckoutMode || activeCard.isLoading);
@@ -1165,9 +1316,22 @@
     if (mobileQuery && typeof mobileQuery.addEventListener === "function") {
       mobileQuery.addEventListener("change", function () {
         updateStickyCta();
+        updateStickyViewportOffset();
       });
     }
 
+    if (window.visualViewport && typeof window.visualViewport.addEventListener === "function") {
+      window.visualViewport.addEventListener("resize", updateStickyViewportOffset);
+      window.visualViewport.addEventListener("scroll", updateStickyViewportOffset);
+    }
+
+    if (typeof window.addEventListener === "function") {
+      window.addEventListener("resize", updateStickyViewportOffset);
+      window.addEventListener("orientationchange", updateStickyViewportOffset);
+      window.addEventListener("scroll", updateStickyViewportOffset, { passive: true });
+    }
+
+    updateStickyViewportOffset();
     setIdleState();
   }
 
@@ -1181,5 +1345,8 @@
     window.EvaCoffeeBoxTestUtils = window.EvaCoffeeBoxTestUtils || {};
     window.EvaCoffeeBoxTestUtils.buildVariationRequest = buildVariationRequest;
     window.EvaCoffeeBoxTestUtils.resolveStickyCtaState = resolveStickyCtaState;
+    window.EvaCoffeeBoxTestUtils.resolvePrimaryButtonEnabled = resolvePrimaryButtonEnabled;
+    window.EvaCoffeeBoxTestUtils.resolvePostAddUiMode = resolvePostAddUiMode;
+    window.EvaCoffeeBoxTestUtils.getViewportBottomOffset = getViewportBottomOffset;
   }
 })();
