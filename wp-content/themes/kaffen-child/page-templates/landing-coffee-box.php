@@ -247,7 +247,7 @@ get_header();
 							<?php if ( $is_featured ) : ?>
 								<p class="eva-badge"><?php esc_html_e( 'Più completo', 'kaffen-child' ); ?></p>
                             <?php else : ?>
-								<p class="eva-badge"><?php esc_html_e( 'Discovery', 'kaffen-child' ); ?></p>
+								<p class="eva-badge"><?php esc_html_e( 'Intermedio', 'kaffen-child' ); ?></p>
 							<?php endif; ?>
 
 							<div class="eva-card-media">
@@ -281,16 +281,8 @@ get_header();
 									<dd><?php echo esc_html( $item['box_contents'] ); ?></dd>
 								</div>
 								<div class="eva-compare-row">
-									<dt><?php esc_html_e( 'Profilo in tazza', 'kaffen-child' ); ?></dt>
-									<dd><?php echo esc_html( $item['cup_profile'] ); ?></dd>
-								</div>
-								<div class="eva-compare-row">
 									<dt><?php esc_html_e( 'Metodi consigliati', 'kaffen-child' ); ?></dt>
 									<dd><?php echo esc_html( $item['methods'] ); ?></dd>
-								</div>
-								<div class="eva-compare-row">
-									<dt><?php esc_html_e( 'Per chi è ideale', 'kaffen-child' ); ?></dt>
-									<dd><?php echo esc_html( $item['audience'] ); ?></dd>
 								</div>
 								<div class="eva-compare-row">
 									<dt><?php esc_html_e( 'Spedizione', 'kaffen-child' ); ?></dt>
