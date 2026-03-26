@@ -39,10 +39,11 @@ function eva_coffee_box_preserve_query_args( $url ) {
  * @param int      $product_id Product ID.
  * @param string   $shipping_note Shipping note.
  * @param string[] $required_labels Required variation labels.
+ * @param bool     $include_all_attributes Whether to include all variation attributes.
  * @return array
  */
-function eva_coffee_box_build_card_data( $product_id, $shipping_note, $required_labels = array() ) {
-	if ( empty( $required_labels ) ) {
+function eva_coffee_box_build_card_data( $product_id, $shipping_note, $required_labels = array(), $include_all_attributes = false ) {
+	if ( ! $include_all_attributes && empty( $required_labels ) ) {
 		$required_labels = array(
 			'Macinatura Caffè Moka/Espresso',
 			'Macinatura Caffè Filtro',
@@ -59,7 +60,7 @@ function eva_coffee_box_build_card_data( $product_id, $shipping_note, $required_
 	);
 
 	if ( 0 === (int) $product_id ) {
-		$card['issues'][] = __( 'ID prodotto non impostato. Definisci EVA_BOX_STARTER_ID e EVA_BOX_FULL_ID in eva-coffee-box.local.php (o in wp-config.php).', 'kaffen-child' );
+		$card['issues'][] = __( 'ID prodotto non impostato. Definisci EVA_BOX_STARTER_ID, EVA_BOX_FULL_ID e EVA_BOX_MINI_ID in eva-coffee-box.local.php (o in wp-config.php).', 'kaffen-child' );
 		return $card;
 	}
 
@@ -85,6 +86,33 @@ function eva_coffee_box_build_card_data( $product_id, $shipping_note, $required_
 
 	$available_variations = $product->get_available_variations();
 	$variation_attributes = $product->get_variation_attributes();
+
+	if ( $include_all_attributes ) {
+		foreach ( $variation_attributes as $attribute_key => $options ) {
+			$attribute_name = (string) $attribute_key;
+			$variation_key  = 0 === strpos( $attribute_name, 'attribute_' ) ? $attribute_name : 'attribute_' . $attribute_name;
+			$label          = wc_attribute_label( str_replace( 'attribute_', '', $attribute_name ), $product );
+
+			if ( '' === trim( (string) $label ) ) {
+				$label = str_replace( array( 'attribute_pa_', 'attribute_' ), '', $variation_key );
+				$label = ucwords( str_replace( array( '-', '_' ), ' ', $label ) );
+			}
+
+			$card['attributes'][ $label ] = array(
+				'key'     => $variation_key,
+				'options' => array_values( array_filter( array_map( 'trim', (array) $options ) ) ),
+			);
+		}
+
+		if ( empty( $card['attributes'] ) ) {
+			$card['issues'][] = __( 'Nessun attributo di variazione trovato per questo prodotto.', 'kaffen-child' );
+		}
+
+		$card['variations_json'] = wp_json_encode( $available_variations );
+		$card['product']         = $product;
+
+		return $card;
+	}
 
 	foreach ( $required_labels as $label ) {
 		$target_slug = sanitize_title( $label );
@@ -166,6 +194,7 @@ if ( file_exists( $local_config_path ) ) {
 
 $box_starter_id = defined( 'EVA_BOX_STARTER_ID' ) ? (int) EVA_BOX_STARTER_ID : 0;
 $box_full_id    = defined( 'EVA_BOX_FULL_ID' ) ? (int) EVA_BOX_FULL_ID : 0;
+$box_mini_id    = defined( 'EVA_BOX_MINI_ID' ) ? (int) EVA_BOX_MINI_ID : 0;
 
 $full_card    = eva_coffee_box_build_card_data(
 	$box_full_id,
@@ -182,14 +211,25 @@ $starter_card = eva_coffee_box_build_card_data(
 		'Macinatura Caffè Moka/Espresso',
 	)
 );
+$mini_card    = eva_coffee_box_build_card_data(
+	$box_mini_id,
+	__( 'Spedizione inclusa', 'kaffen-child' ),
+	array(),
+	true
+);
 
 $is_admin_notice_visible = current_user_can( 'manage_options' );
 
-$cards = array(
+
+$comparison_cards = array(
 	array(
 		'id'          => 'full',
 		'card'        => $full_card,
 		'is_featured' => true,
+		'attribute_notes' => array(
+			'Macinatura Caffè Moka/Espresso' => __( 'Per Ottantaventi e Saudade', 'kaffen-child' ),
+			'Macinatura Caffè Filtro'        => __( 'Per Libertad e Jebena', 'kaffen-child' ),
+		),
 		'box_contents' => __( 'Ottantaventi + Saudade + Libertad + Jebena', 'kaffen-child' ),
 		'cup_profile'  => __( 'Viaggio completo tra note cremose, cioccolatose, agrumate e tropicali', 'kaffen-child' ),
 		'methods'      => __( 'Espresso, Moka, V60, AeroPress, French Press', 'kaffen-child' ),
@@ -202,6 +242,9 @@ $cards = array(
 		'id'          => 'starter',
 		'card'        => $starter_card,
 		'is_featured' => false,
+		'attribute_notes' => array(
+			'Macinatura Caffè Moka/Espresso' => __( 'Per Saudade', 'kaffen-child' ),
+		),
 		'box_contents' => __( 'Saudade + Jebena Drip Bags 10x9g', 'kaffen-child' ),
 		'cup_profile'  => __( 'Dolce e confortante, con apertura fruttata e floreale', 'kaffen-child' ),
 		'methods'      => __( 'Moka/Espresso + Drip Bag', 'kaffen-child' ),
@@ -211,6 +254,25 @@ $cards = array(
 		'live_message' => __( 'Level Up selezionato.', 'kaffen-child' ),
 	),
 );
+
+$mini_product           = $mini_card['product'];
+$mini_link_is_available = ( $mini_product && empty( $mini_card['issues'] ) );
+
+$mini_item = array(
+	'id'          => 'mini',
+	'card'        => $mini_card,
+	'is_featured' => false,
+	'attribute_notes' => array(),
+	'box_contents' => __( '4 campioni da 30g', 'kaffen-child' ),
+	'cup_profile'  => __( 'Percorso essenziale di assaggio', 'kaffen-child' ),
+	'methods'      => __( 'Moka, Espresso, Filtro', 'kaffen-child' ),
+	'audience'     => __( 'Per chi vuole un primo contatto con la collezione Discovery', 'kaffen-child' ),
+	'shipping'     => __( 'Inclusa', 'kaffen-child' ),
+	'compare_cta'  => __( 'Scelgo Starter Pack', 'kaffen-child' ),
+	'live_message' => __( 'Starter Pack selezionato.', 'kaffen-child' ),
+);
+
+$configure_cards = array_merge( $comparison_cards, array( $mini_item ) );
 
 get_header();
 ?>
@@ -232,9 +294,46 @@ get_header();
 		<div class="eva-wrap">
 			<h2 id="eva-choose-title"><?php esc_html_e( '1. Scegli il box', 'kaffen-child' ); ?></h2>
 			<p class="eva-section-note"><?php esc_html_e( 'Parti da Boss Mode se vuoi il percorso più completo.', 'kaffen-child' ); ?></p>
+			<?php if ( $mini_link_is_available ) : ?>
+				<div class="eva-mini-entry" data-eva-mini-entry>
+					<button type="button" class="eva-mini-entry__toggle" data-eva-mini-toggle aria-expanded="false" aria-controls="eva-mini-panel"><?php esc_html_e( 'Cerchi un assaggio rapido?', 'kaffen-child' ); ?></button>
+					<div id="eva-mini-panel" class="eva-mini-entry__panel" data-eva-mini-panel hidden>
+						<p><?php esc_html_e( 'Abbiamo anche una Discovery Starter Pack (4 campioni da 30g, spedizione inclusa), pensato per un primo assaggio.', 'kaffen-child' ); ?></p>
+						<?php if ( $mini_product ) : ?>
+							<p class="eva-mini-entry__price">
+								<?php esc_html_e( 'Prezzo:', 'kaffen-child' ); ?>
+								<span><?php echo wp_kses_post( $mini_product->get_price_html() ); ?></span>
+							</p>
+						<?php endif; ?>
+						<div class="eva-mini-entry__actions">
+							<button
+								type="button"
+								class="eva-mini-entry__cta"
+								data-eva-compare-cta
+								data-target-card="mini"
+								data-live-message="<?php echo esc_attr__( 'Starter Pack selezionato.', 'kaffen-child' ); ?>"
+							>
+								<?php esc_html_e( 'Scegli Discovery "Starter Pack"', 'kaffen-child' ); ?>
+							</button>
+							<?php if ( $mini_product ) : ?>
+								<a class="eva-mini-entry__details" href="<?php echo esc_url( $mini_product->get_permalink() ); ?>"><?php esc_html_e( 'Dettagli', 'kaffen-child' ); ?></a>
+							<?php endif; ?>
+						</div>
+					</div>
+				</div>
+			<?php elseif ( $is_admin_notice_visible && ! empty( $mini_card['issues'] ) ) : ?>
+				<div class="eva-admin-warning" role="alert">
+					<strong><?php esc_html_e( 'Avviso admin Starter Pack:', 'kaffen-child' ); ?></strong>
+					<ul>
+						<?php foreach ( $mini_card['issues'] as $issue ) : ?>
+							<li><?php echo esc_html( $issue ); ?></li>
+						<?php endforeach; ?>
+					</ul>
+				</div>
+			<?php endif; ?>
 			<div class="eva-comparison" data-eva-comparison>
 				<div class="eva-comparison-grid" role="list">
-					<?php foreach ( $cards as $item ) : ?>
+					<?php foreach ( $comparison_cards as $item ) : ?>
 						<?php
 						$card         = $item['card'];
 						$product      = $card['product'];
@@ -319,16 +418,13 @@ get_header();
 			</div>
 			<div class="eva-cards">
 				<?php
-				foreach ( $cards as $item ) :
+				foreach ( $configure_cards as $item ) :
 					$card         = $item['card'];
 					$product      = $card['product'];
 					$is_featured  = (bool) $item['is_featured'];
+					$attribute_notes = isset( $item['attribute_notes'] ) && is_array( $item['attribute_notes'] ) ? $item['attribute_notes'] : array();
 					$product_name = $product ? $product->get_name() : __( 'Prodotto non disponibile', 'kaffen-child' );
-					$attr_moka    = isset( $card['attributes']['Macinatura Caffè Moka/Espresso'] ) ? $card['attributes']['Macinatura Caffè Moka/Espresso'] : null;
-					$attr_filter  = isset( $card['attributes']['Macinatura Caffè Filtro'] ) ? $card['attributes']['Macinatura Caffè Filtro'] : null;
-					$moka_note    = 'full' === $item['id'] ? __( 'Per Ottantaventi e Saudade', 'kaffen-child' ) : __( 'Per Saudade', 'kaffen-child' );
-					$filter_note  = 'full' === $item['id'] ? __( 'Per Libertad e Jebena', 'kaffen-child' ) : __( 'Per Jebena Drip Bags', 'kaffen-child' );
-					$has_filter   = (bool) $attr_filter;
+					$attributes   = isset( $card['attributes'] ) && is_array( $card['attributes'] ) ? $card['attributes'] : array();
 					?>
 					<article class="eva-card<?php echo $is_featured ? ' is-featured' : ''; ?>" data-card-id="<?php echo esc_attr( $item['id'] ); ?>" <?php echo $product ? 'data-product-id="' . esc_attr( $product->get_id() ) . '"' : ''; ?> <?php echo $product ? 'data-variations="' . esc_attr( $card['variations_json'] ) . '"' : ''; ?>>
 						<h3 class="eva-card-title" dir="auto" tabindex="-1"><?php echo esc_html( $product_name ); ?></h3>
@@ -344,31 +440,33 @@ get_header();
 							</div>
 						<?php endif; ?>
 
-						<?php if ( $product && empty( $card['issues'] ) && $attr_moka ) : ?>
+						<?php if ( $product && empty( $card['issues'] ) && ! empty( $attributes ) ) : ?>
 							<form class="eva-variation-form" novalidate>
-								<div class="eva-field">
-									<label for="eva-moka-<?php echo esc_attr( $item['id'] ); ?>"><?php esc_html_e( 'Macinatura Caffè Moka/Espresso', 'kaffen-child' ); ?></label>
-									<p id="eva-moka-note-<?php echo esc_attr( $item['id'] ); ?>" class="eva-field-note"><?php echo esc_html( $moka_note ); ?></p>
-									<select id="eva-moka-<?php echo esc_attr( $item['id'] ); ?>" class="eva-select" data-attribute-key="<?php echo esc_attr( $attr_moka['key'] ); ?>" data-attribute-label="<?php esc_attr_e( 'Macinatura Caffè Moka/Espresso', 'kaffen-child' ); ?>" aria-describedby="eva-moka-note-<?php echo esc_attr( $item['id'] ); ?>" aria-required="true" required>
-										<option value=""><?php esc_html_e( 'Seleziona...', 'kaffen-child' ); ?></option>
-										<?php foreach ( $attr_moka['options'] as $option ) : ?>
-											<option value="<?php echo esc_attr( $option ); ?>"><?php echo esc_html( $option ); ?></option>
-										<?php endforeach; ?>
-									</select>
-								</div>
-
-								<?php if ( $has_filter ) : ?>
+								<?php foreach ( $attributes as $attribute_label => $attribute_data ) : ?>
+									<?php
+									$attribute_key  = isset( $attribute_data['key'] ) ? (string) $attribute_data['key'] : '';
+									$attribute_opts = isset( $attribute_data['options'] ) && is_array( $attribute_data['options'] ) ? $attribute_data['options'] : array();
+									$attribute_note = isset( $attribute_notes[ $attribute_label ] ) ? (string) $attribute_notes[ $attribute_label ] : '';
+									if ( '' === $attribute_key || empty( $attribute_opts ) ) {
+										continue;
+									}
+									$field_slug = sanitize_title( $attribute_label );
+									$field_id   = 'eva-attr-' . $field_slug . '-' . $item['id'];
+									$note_id    = $field_id . '-note';
+									?>
 									<div class="eva-field">
-										<label for="eva-filter-<?php echo esc_attr( $item['id'] ); ?>"><?php esc_html_e( 'Macinatura Caffè Filtro', 'kaffen-child' ); ?></label>
-										<p id="eva-filter-note-<?php echo esc_attr( $item['id'] ); ?>" class="eva-field-note"><?php echo esc_html( $filter_note ); ?></p>
-										<select id="eva-filter-<?php echo esc_attr( $item['id'] ); ?>" class="eva-select" data-attribute-key="<?php echo esc_attr( $attr_filter['key'] ); ?>" data-attribute-label="<?php esc_attr_e( 'Macinatura Caffè Filtro', 'kaffen-child' ); ?>" aria-describedby="eva-filter-note-<?php echo esc_attr( $item['id'] ); ?>" aria-required="true" required>
+										<label for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $attribute_label ); ?></label>
+										<?php if ( '' !== $attribute_note ) : ?>
+											<p id="<?php echo esc_attr( $note_id ); ?>" class="eva-field-note"><?php echo esc_html( $attribute_note ); ?></p>
+										<?php endif; ?>
+										<select id="<?php echo esc_attr( $field_id ); ?>" class="eva-select" data-attribute-key="<?php echo esc_attr( $attribute_key ); ?>" data-attribute-label="<?php echo esc_attr( $attribute_label ); ?>" <?php echo '' !== $attribute_note ? 'aria-describedby="' . esc_attr( $note_id ) . '"' : ''; ?> aria-required="true" required>
 											<option value=""><?php esc_html_e( 'Seleziona...', 'kaffen-child' ); ?></option>
-											<?php foreach ( $attr_filter['options'] as $option ) : ?>
+											<?php foreach ( $attribute_opts as $option ) : ?>
 												<option value="<?php echo esc_attr( $option ); ?>"><?php echo esc_html( $option ); ?></option>
 											<?php endforeach; ?>
 										</select>
 									</div>
-								<?php endif; ?>
+								<?php endforeach; ?>
 
 								<div class="eva-add-success" data-eva-add-success hidden>
 									<span class="eva-add-success__icon" aria-hidden="true">&#10003;</span>
@@ -471,5 +569,5 @@ get_footer();
 How to use:
 1) Create a WordPress page with slug /coffee-box
 2) Assign template "Coffee Box Landing"
-3) Define EVA_BOX_STARTER_ID and EVA_BOX_FULL_ID in eva-coffee-box.local.php (or wp-config.php)
+3) Define EVA_BOX_STARTER_ID, EVA_BOX_FULL_ID and EVA_BOX_MINI_ID in eva-coffee-box.local.php (or wp-config.php)
 */

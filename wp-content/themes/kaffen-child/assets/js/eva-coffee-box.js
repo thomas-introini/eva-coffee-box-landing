@@ -921,6 +921,8 @@
     var cardsWrap = document.querySelector(".eva-cards");
     var configurePlaceholder = document.querySelector("[data-eva-config-placeholder]");
     var changeBoxButton = document.querySelector("[data-eva-change-box]");
+    var miniToggle = document.querySelector("[data-eva-mini-toggle]");
+    var miniPanel = document.querySelector("[data-eva-mini-panel]");
     var chooseTitle = document.getElementById("eva-choose-title");
     var stickyCtaWrap = document.querySelector("[data-eva-sticky-cta-wrap]");
     var stickyStep2 = document.querySelector("[data-eva-sticky-step2]");
@@ -1237,12 +1239,29 @@
 
       controller.focus();
       controller.setInfoMessage(liveMessage);
+
+      if (miniPanel && !miniPanel.hidden) {
+        miniPanel.hidden = true;
+      }
+
+      if (miniToggle) {
+        miniToggle.setAttribute("aria-expanded", "false");
+      }
+
       updateStickyCta();
     }
 
     handleComparisonCtas(function (targetCardId, liveMessage) {
       activateCard(targetCardId, liveMessage);
     });
+
+    if (miniToggle && miniPanel) {
+      miniToggle.addEventListener("click", function () {
+        var expanded = miniToggle.getAttribute("aria-expanded") === "true";
+        miniToggle.setAttribute("aria-expanded", expanded ? "false" : "true");
+        miniPanel.hidden = expanded;
+      });
+    }
 
     if (changeBoxButton) {
       changeBoxButton.addEventListener("click", function () {

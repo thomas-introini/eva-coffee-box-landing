@@ -116,6 +116,74 @@
   font-size: 0.98rem;
 }
 
+.eva-mini-entry {
+  margin: 0 0 0.95rem;
+}
+
+.eva-mini-entry__toggle {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: rgba(95, 65, 46, 0.84);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+.eva-mini-entry__panel {
+  margin-top: 0.55rem;
+  max-width: 52ch;
+  border: 1px dashed rgba(118, 82, 56, 0.35);
+  border-radius: 0.85rem;
+  background: rgba(255, 251, 246, 0.86);
+  padding: 0.7rem 0.8rem;
+}
+
+.eva-mini-entry__panel p {
+  margin: 0;
+  color: rgba(73, 51, 37, 0.9);
+  font-size: 0.88rem;
+}
+
+.eva-mini-entry__price {
+  margin-top: 0.4rem !important;
+  font-size: 0.86rem !important;
+  color: rgba(63, 42, 30, 0.9) !important;
+}
+
+.eva-mini-entry__price span {
+  font-weight: 700;
+}
+
+.eva-mini-entry__actions {
+  margin-top: 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.eva-mini-entry__cta {
+  border: 1px solid rgba(116, 78, 53, 0.36);
+  background: rgba(255, 253, 249, 0.92);
+  color: rgba(57, 39, 28, 0.92);
+  border-radius: 999px;
+  min-height: 2.1rem;
+  padding: 0.28rem 0.78rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.eva-mini-entry__details {
+  font-size: 0.8rem;
+  color: rgba(95, 65, 46, 0.82);
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+}
+
 .eva-comparison {
   margin-top: 0.8rem;
 }
@@ -351,6 +419,9 @@
 .eva-cta:focus-visible,
 .eva-compare-cta:focus-visible,
 .eva-change-box:focus-visible,
+.eva-mini-entry__toggle:focus-visible,
+.eva-mini-entry__cta:focus-visible,
+.eva-mini-entry__details:focus-visible,
 .eva-accordion-trigger:focus-visible {
   outline: 3px solid var(--brand-color-transparent);
   outline-offset: 2px;
@@ -542,6 +613,11 @@
   .eva-change-box:hover {
     background: rgba(221, 95, 52, 0.08);
     border-color: rgba(221, 95, 52, 0.58);
+  }
+
+  .eva-mini-entry__cta:hover {
+    border-color: rgba(221, 95, 52, 0.48);
+    background: rgba(221, 95, 52, 0.06);
   }
 }
 
